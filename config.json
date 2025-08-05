@@ -1,4 +1,7 @@
 {
-                "API_KEY": "AIzaSyAC2aRLAFl_VfV9eJSKTNX6VKqbN1Y0xKE"
-
+    "API_KEY": "AIzaSyAC2aRLAFl_VfV9eJSKTNX6VKqbN1Y0xKE",
+    "fetch": {
+        "url": "config.json",
+        "method": "GET"
+    }
 }

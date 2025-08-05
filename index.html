@@ -550,18 +550,8 @@
         });
 
         // YouTube API configuration - Replace with your own API key
-        // const API_KEY = 'YOUR_YOUTUBE_API_KEY';
+         const API_KEY = API_KEY;
 
-        fetch('config.json')
-                .then(response => response.json())
-                .then(config => {
-                    if (config.API_KEY) {
-                        API_KEY = config.API_KEY;
-                    }
-                })
-                .catch(() => {
-                    // If config.json not found, use default key
-                });
         const API_URL = 'https://www.googleapis.com/youtube/v3/';
         
         // DOM elements
