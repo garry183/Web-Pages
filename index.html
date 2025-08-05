@@ -136,11 +136,26 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transition: transform 0.5s ease;
+            transition: opacity 0.5s ease;
+        }
+
+        .video-preview {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.5s ease;
         }
 
         .video-card:hover .thumbnail {
-            transform: scale(1.05);
+            opacity: 0;
+        }
+
+        .video-card:hover .video-preview {
+            opacity: 1;
         }
 
         .play-btn {
@@ -159,6 +174,7 @@
             transition: all 0.3s ease;
             backdrop-filter: blur(5px);
             border: 2px solid rgba(255, 255, 255, 0.3);
+            z-index: 10;
         }
 
         .play-btn:hover {
@@ -398,7 +414,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // YouTube API configuration - Replace with your own API key
-            const API_KEY = 'AIzaSyAC2aRLAFl_VfV9eJSKTNX6VKqbN1Y0xKE';
+            const API_KEY = 'YOUR_YOUTUBE_API_KEY';
             const API_URL = 'https://www.googleapis.com/youtube/v3/';
             
             // DOM elements
@@ -629,6 +645,10 @@
                     videoCard.innerHTML = `
                         <div class="thumbnail-container">
                             <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail">
+                            <video class="video-preview" muted loop>
+                                <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
                             <div class="play-btn" data-video-id="${video.id}">
                                 <i class="fas fa-play"></i>
                             </div>
@@ -650,6 +670,17 @@
                     `;
                     
                     videoGrid.appendChild(videoCard);
+                    
+                    // Add hover event for video preview
+                    const videoPreview = videoCard.querySelector('.video-preview');
+                    videoCard.addEventListener('mouseenter', () => {
+                        videoPreview.play();
+                    });
+                    
+                    videoCard.addEventListener('mouseleave', () => {
+                        videoPreview.pause();
+                        videoPreview.currentTime = 0;
+                    });
                     
                     // Add click event to play button
                     const playBtn = videoCard.querySelector('.play-btn');
@@ -686,7 +717,7 @@
             
             // Show about information
             function showAbout() {
-                alert('AI Video Explorer\n\nThis application displays the top 10 most viewed Artificial Intelligence videos on YouTube from the past week.\n\nTo use with real YouTube data, replace "YOUR_YOUTUBE_API_KEY" with your actual YouTube Data API key.');
+                alert('AI Video Explorer\n\nThis application displays the top 10 most viewed Artificial Intelligence videos on YouTube from the past week.\n\nVideos autoplay on hover for a quick preview. Click the play button to watch the full video.\n\nTo use with real YouTube data, replace "YOUR_YOUTUBE_API_KEY" with your actual YouTube Data API key.');
             }
             
             // Initialize the app
