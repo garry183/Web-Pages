@@ -7,58 +7,97 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary: #8b5cf6;
-            --accent: #ec4899;
-            --dark: #1e293b;
-            --darker: #0f172a;
-            --light: #f8fafc;
-            --gray: #64748b;
-            --card-bg: rgba(30, 41, 59, 0.7);
-            --glass: rgba(255, 255, 255, 0.05);
-            --border: rgba(255, 255, 255, 0.1);
+            --primary: #00ffcc;
+            --primary-dark: #00ccaa;
+            --secondary: #6366f1;
+            --accent: #ff00ff;
+            --dark: #0a0a0a;
+            --darker: #000000;
+            --light: #e0e0e0;
+            --gray: #a0a0a0;
+            --card-bg: rgba(10, 10, 20, 0.8);
+            --glass: rgba(0, 255, 204, 0.05);
+            --border: rgba(0, 255, 204, 0.2);
+            --matrix-green: #00ff00;
+            --matrix-blue: #00ccff;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Courier New', monospace;
         }
 
         body {
-            background: linear-gradient(135deg, var(--darker) 0%, var(--dark) 100%);
+            background: #000;
             color: var(--light);
             min-height: 100vh;
             padding: 20px;
             overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Matrix Background */
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.6;
         }
 
         .container {
             max-width: 1400px;
             margin: 0 auto;
+            position: relative;
+            z-index: 1;
         }
 
         header {
             text-align: center;
             margin-bottom: 40px;
-            padding: 20px;
-            background: var(--glass);
+            padding: 30px;
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.8), rgba(0, 10, 30, 0.8));
             border-radius: 20px;
             backdrop-filter: blur(10px);
             border: 1px solid var(--border);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--primary), var(--secondary), var(--accent), var(--primary));
+            border-radius: 20px;
+            opacity: 0.5;
+            z-index: -1;
+            animation: borderRotate 8s linear infinite;
+        }
+
+        @keyframes borderRotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
 
         h1 {
             font-size: 3.5rem;
             margin-bottom: 15px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+            background: linear-gradient(90deg, var(--primary), var(--matrix-blue), var(--accent));
             -webkit-background-clip: text;
             background-clip: text;
             color: transparent;
-            text-shadow: 0 0 30px rgba(99, 102, 241, 0.3);
+            text-shadow: 0 0 20px rgba(0, 255, 204, 0.5);
+            font-weight: bold;
+            letter-spacing: 2px;
         }
 
         .subtitle {
@@ -67,6 +106,7 @@
             max-width: 700px;
             margin: 0 auto;
             line-height: 1.6;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
         }
 
         .controls {
@@ -78,7 +118,7 @@
         }
 
         .control-btn {
-            background: var(--glass);
+            background: linear-gradient(135deg, rgba(0, 30, 60, 0.8), rgba(0, 20, 40, 0.8));
             border: 1px solid var(--border);
             color: var(--light);
             padding: 12px 25px;
@@ -90,12 +130,30 @@
             align-items: center;
             gap: 8px;
             backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .control-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 204, 0.4), transparent);
+            transition: left 0.5s;
+        }
+
+        .control-btn:hover::before {
+            left: 100%;
         }
 
         .control-btn:hover {
-            background: var(--primary);
+            background: linear-gradient(135deg, rgba(0, 50, 100, 0.9), rgba(0, 30, 60, 0.9));
             transform: translateY(-3px);
-            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+            box-shadow: 0 10px 20px rgba(0, 255, 204, 0.3);
+            border-color: var(--primary);
         }
 
         .video-grid {
@@ -106,20 +164,37 @@
         }
 
         .video-card {
-            background: var(--card-bg);
+            background: linear-gradient(135deg, rgba(10, 10, 30, 0.9), rgba(5, 5, 20, 0.9));
             border-radius: 16px;
             overflow: hidden;
             transition: all 0.4s ease;
             border: 1px solid var(--border);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             display: flex;
             flex-direction: column;
             height: 100%;
+            position: relative;
+        }
+
+        .video-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .video-card:hover::before {
+            opacity: 1;
         }
 
         .video-card:hover {
             transform: translateY(-10px);
-            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.2);
+            box-shadow: 0 15px 35px rgba(0, 255, 204, 0.2);
             border-color: var(--primary);
         }
 
@@ -127,6 +202,7 @@
             position: relative;
             padding-top: 56.25%; /* 16:9 Aspect Ratio */
             overflow: hidden;
+            background: #000;
         }
 
         .thumbnail {
@@ -165,7 +241,7 @@
             transform: translate(-50%, -50%);
             width: 70px;
             height: 70px;
-            background: rgba(99, 102, 241, 0.8);
+            background: rgba(0, 255, 204, 0.2);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -173,17 +249,18 @@
             cursor: pointer;
             transition: all 0.3s ease;
             backdrop-filter: blur(5px);
-            border: 2px solid rgba(255, 255, 255, 0.3);
+            border: 2px solid var(--primary);
             z-index: 10;
         }
 
         .play-btn:hover {
-            background: var(--primary);
+            background: rgba(0, 255, 204, 0.4);
             transform: translate(-50%, -50%) scale(1.1);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.6);
         }
 
         .play-btn i {
-            color: white;
+            color: var(--primary);
             font-size: 24px;
             margin-left: 5px;
         }
@@ -202,8 +279,11 @@
             line-height: 1.4;
             display: -webkit-box;
             -webkit-line-clamp: 2;
+            line-clamp: 2;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            color: var(--light);
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.3);
         }
 
         .video-meta {
@@ -226,6 +306,10 @@
             display: flex;
             align-items: center;
             gap: 5px;
+        }
+
+        .video-stats i {
+            color: var(--primary);
         }
 
         .channel-info {
@@ -255,7 +339,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9);
             z-index: 1000;
             justify-content: center;
             align-items: center;
@@ -266,10 +350,10 @@
             position: relative;
             width: 90%;
             max-width: 900px;
-            background: var(--dark);
+            background: linear-gradient(135deg, rgba(10, 10, 30, 0.95), rgba(5, 5, 20, 0.95));
             border-radius: 16px;
             overflow: hidden;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
             border: 1px solid var(--border);
         }
 
@@ -279,11 +363,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: rgba(0, 20, 40, 0.5);
         }
 
         .modal-title {
             font-size: 1.5rem;
             font-weight: 600;
+            color: var(--primary);
         }
 
         .close-btn {
@@ -317,13 +403,14 @@
             text-align: center;
             padding: 60px 20px;
             font-size: 1.2rem;
-            color: var(--gray);
+            color: var(--primary);
         }
 
         .loading i {
             font-size: 3rem;
             margin-bottom: 20px;
             animation: spin 2s infinite linear;
+            color: var(--primary);
         }
 
         @keyframes spin {
@@ -338,6 +425,9 @@
             font-size: 0.9rem;
             border-top: 1px solid var(--border);
             margin-top: 40px;
+            background: rgba(0, 20, 40, 0.3);
+            border-radius: 16px;
+            backdrop-filter: blur(5px);
         }
 
         .footer a {
@@ -347,6 +437,7 @@
 
         .footer a:hover {
             text-decoration: underline;
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.5);
         }
 
         @media (max-width: 768px) {
@@ -366,24 +457,26 @@
     </style>
 </head>
 <body>
+    <canvas id="matrix-bg"></canvas>
+    
     <div class="container">
         <header>
-            <h1>AI Video Explorer</h1>
-            <p class="subtitle">Discover the top 10 most viewed Artificial Intelligence videos on YouTube from the past week. Stay updated with the latest AI trends and breakthroughs.</p>
+            <h1>AI VIDEO EXPLORER</h1>
+            <p class="subtitle">[ ACCESSING NEURAL NETWORK: TOP 10 AI VIDEOS FROM PAST WEEK ]</p>
         </header>
 
         <div class="controls">
             <button class="control-btn" id="refreshBtn">
-                <i class="fas fa-sync-alt"></i> Refresh Videos
+                <i class="fas fa-sync-alt"></i> REFRESH DATA
             </button>
             <button class="control-btn" id="aboutBtn">
-                <i class="fas fa-info-circle"></i> About
+                <i class="fas fa-info-circle"></i> SYSTEM INFO
             </button>
         </div>
 
         <div id="loadingIndicator" class="loading">
             <i class="fas fa-cog"></i>
-            <p>Loading top AI videos...</p>
+            <p>[ INITIALIZING QUANTUM PROCESSOR... ]</p>
         </div>
 
         <div id="videoGrid" class="video-grid" style="display: none;">
@@ -393,7 +486,7 @@
         <div id="videoModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3 class="modal-title" id="modalTitle">Video Player</h3>
+                    <h3 class="modal-title" id="modalTitle">[ VIDEO PLAYER ]</h3>
                     <button class="close-btn" id="closeModal">
                         <i class="fas fa-times"></i>
                     </button>
@@ -405,324 +498,392 @@
         </div>
 
         <footer class="footer">
-            <p>AI Video Explorer • Data fetched from YouTube API • 
-            <a href="https://developers.google.com/youtube/v3" target="_blank">YouTube Data API</a>
-            </p>
+            <p>[ AI VIDEO EXPLORER v2.0 • DATA STREAM: YOUTUBE API • 
+            <a href="https://developers.google.com/youtube/v3" target="_blank">NEURAL LINK</a>
+            ]</p>
         </footer>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // YouTube API configuration - Replace with your own API key
-            const API_KEY = 'YOUR_YOUTUBE_API_KEY';
-            const API_URL = 'https://www.googleapis.com/youtube/v3/';
-            
-            // DOM elements
-            const videoGrid = document.getElementById('videoGrid');
-            const loadingIndicator = document.getElementById('loadingIndicator');
-            const videoModal = document.getElementById('videoModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const videoPlayer = document.getElementById('videoPlayer');
-            const closeModal = document.getElementById('closeModal');
-            const refreshBtn = document.getElementById('refreshBtn');
-            const aboutBtn = document.getElementById('aboutBtn');
-            
-            // Sample video data (in case API key is not provided)
-            const sampleVideos = [
-                {
-                    id: 'video1',
-                    title: 'The Future of Artificial Intelligence: What to Expect in the Next Decade',
-                    channel: 'TechVision',
-                    channelId: 'UC123456789',
-                    thumbnail: 'https://picsum.photos/seed/ai1/640/360.jpg',
-                    views: '2.4M',
-                    likes: '120K',
-                    publishedAt: '2023-05-15'
-                },
-                {
-                    id: 'video2',
-                    title: 'How AI is Revolutionizing Healthcare: Breakthrough Technologies',
-                    channel: 'HealthTech Insights',
-                    channelId: 'UC987654321',
-                    thumbnail: 'https://picsum.photos/seed/ai2/640/360.jpg',
-                    views: '1.8M',
-                    likes: '95K',
-                    publishedAt: '2023-05-14'
-                },
-                {
-                    id: 'video3',
-                    title: 'Building Your First AI Model: A Beginner\'s Guide',
-                    channel: 'AI Academy',
-                    channelId: 'UC456789123',
-                    thumbnail: 'https://picsum.photos/seed/ai3/640/360.jpg',
-                    views: '1.5M',
-                    likes: '85K',
-                    publishedAt: '2023-05-13'
-                },
-                {
-                    id: 'video4',
-                    title: 'The Ethics of Artificial Intelligence: Challenges and Solutions',
-                    channel: 'Tech Ethics',
-                    channelId: 'UC789123456',
-                    thumbnail: 'https://picsum.photos/seed/ai4/640/360.jpg',
-                    views: '1.2M',
-                    likes: '78K',
-                    publishedAt: '2023-05-12'
-                },
-                {
-                    id: 'video5',
-                    title: 'AI vs Human Intelligence: The Ultimate Showdown',
-                    channel: 'Future Tech',
-                    channelId: 'UC321654987',
-                    thumbnail: 'https://picsum.photos/seed/ai5/640/360.jpg',
-                    views: '1.1M',
-                    likes: '65K',
-                    publishedAt: '2023-05-11'
-                },
-                {
-                    id: 'video6',
-                    title: 'How Deep Learning Works: Explained Simply',
-                    channel: 'AI Simplified',
-                    channelId: 'UC654987321',
-                    thumbnail: 'https://picsum.photos/seed/ai6/640/360.jpg',
-                    views: '980K',
-                    likes: '52K',
-                    publishedAt: '2023-05-10'
-                },
-                {
-                    id: 'video7',
-                    title: 'The Impact of AI on Jobs: What You Need to Know',
-                    channel: 'Economy Today',
-                    channelId: 'UC147258369',
-                    thumbnail: 'https://picsum.photos/seed/ai7/640/360.jpg',
-                    views: '850K',
-                    likes: '48K',
-                    publishedAt: '2023-05-09'
-                },
-                {
-                    id: 'video8',
-                    title: 'GPT-5: The Next Generation of Language Models',
-                    channel: 'AI Research Hub',
-                    channelId: 'UC369147258',
-                    thumbnail: 'https://picsum.photos/seed/ai8/640/360.jpg',
-                    views: '780K',
-                    likes: '45K',
-                    publishedAt: '2023-05-08'
-                },
-                {
-                    id: 'video9',
-                    title: 'AI in Autonomous Vehicles: How Self-Driving Cars Work',
-                    channel: 'Auto Tech',
-                    channelId: 'UC258369147',
-                    thumbnail: 'https://picsum.photos/seed/ai9/640/360.jpg',
-                    views: '720K',
-                    likes: '42K',
-                    publishedAt: '2023-05-07'
-                },
-                {
-                    id: 'video10',
-                    title: 'The History of Artificial Intelligence: From Turing to Today',
-                    channel: 'Tech History',
-                    channelId: 'UC147258963',
-                    thumbnail: 'https://picsum.photos/seed/ai10/640/360.jpg',
-                    views: '650K',
-                    likes: '38K',
-                    publishedAt: '2023-05-06'
+        // Matrix Rain Effect
+        const canvas = document.getElementById('matrix-bg');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}01";
+        const matrixArray = matrix.split("");
+
+        const fontSize = 10;
+        const columns = canvas.width / fontSize;
+
+        const drops = [];
+        for(let x = 0; x < columns; x++) {
+            drops[x] = 1;
+        }
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#00ffcc';
+            ctx.font = fontSize + 'px monospace';
+
+            for(let i = 0; i < drops.length; i++) {
+                const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                if(drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
                 }
-            ];
-            
-            // Initialize the app
-            function init() {
-                loadVideos();
-                
-                // Event listeners
-                closeModal.addEventListener('click', closeVideoModal);
-                refreshBtn.addEventListener('click', loadVideos);
-                aboutBtn.addEventListener('click', showAbout);
-                
-                // Close modal when clicking outside
-                window.addEventListener('click', function(event) {
-                    if (event.target === videoModal) {
-                        closeVideoModal();
-                    }
-                });
+                drops[i]++;
             }
-            
-            // Load videos from YouTube API or use sample data
-            function loadVideos() {
-                loadingIndicator.style.display = 'block';
-                videoGrid.style.display = 'none';
-                
-                // If API key is not provided, use sample data
-                if (API_KEY === 'YOUR_YOUTUBE_API_KEY') {
-                    setTimeout(() => {
-                        displayVideos(sampleVideos);
-                    }, 1500);
-                } else {
-                    // Fetch from YouTube API
-                    fetchTopAIVideos()
-                        .then(videos => {
-                            displayVideos(videos);
-                        })
-                        .catch(error => {
-                            console.error('Error fetching videos:', error);
-                            // Fallback to sample data
-                            displayVideos(sampleVideos);
-                        });
-                }
-            }
-            
-            // Fetch top AI videos from YouTube API
-            async function fetchTopAIVideos() {
-                // Calculate date one week ago
-                const oneWeekAgo = new Date();
-                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-                const publishedAfter = oneWeekAgo.toISOString();
-                
-                // First, search for AI videos published in the last week
-                const searchUrl = `${API_URL}search?part=snippet&q=Artificial%20Intelligence&type=video&order=viewCount&publishedAfter=${publishedAfter}&maxResults=50&key=${API_KEY}`;
-                
-                const searchResponse = await fetch(searchUrl);
-                const searchData = await searchResponse.json();
-                
-                if (!searchData.items || searchData.items.length === 0) {
-                    throw new Error('No videos found');
-                }
-                
-                // Extract video IDs
-                const videoIds = searchData.items.map(item => item.id.videoId).join(',');
-                
-                // Get video details including statistics
-                const videosUrl = `${API_URL}videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`;
-                const videosResponse = await fetch(videosUrl);
-                const videosData = await videosResponse.json();
-                
-                // Sort by view count and take top 10
-                const sortedVideos = videosData.items
-                    .sort((a, b) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount))
-                    .slice(0, 10);
-                
-                // Format data for display
-                return sortedVideos.map(video => ({
-                    id: video.id,
-                    title: video.snippet.title,
-                    channel: video.snippet.channelTitle,
-                    channelId: video.snippet.channelId,
-                    thumbnail: video.snippet.thumbnails.high.url,
-                    views: formatViewCount(video.statistics.viewCount),
-                    likes: formatViewCount(video.statistics.likeCount),
-                    publishedAt: video.snippet.publishedAt
-                }));
-            }
-            
-            // Format view count (e.g., 1500000 -> 1.5M)
-            function formatViewCount(count) {
-                if (count >= 1000000) {
-                    return (count / 1000000).toFixed(1) + 'M';
-                } else if (count >= 1000) {
-                    return (count / 1000).toFixed(1) + 'K';
-                } else {
-                    return count.toString();
-                }
-            }
-            
-            // Display videos in the grid
-            function displayVideos(videos) {
-                videoGrid.innerHTML = '';
-                
-                videos.forEach(video => {
-                    const videoCard = document.createElement('div');
-                    videoCard.className = 'video-card';
-                    
-                    // Format date
-                    const publishDate = new Date(video.publishedAt);
-                    const formattedDate = publishDate.toLocaleDateString('en-US', { 
-                        month: 'short', 
-                        day: 'numeric',
-                        year: 'numeric'
-                    });
-                    
-                    videoCard.innerHTML = `
-                        <div class="thumbnail-container">
-                            <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail">
-                            <video class="video-preview" muted loop>
-                                <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
-                                Your browser does not support the video tag.
-                            </video>
-                            <div class="play-btn" data-video-id="${video.id}">
-                                <i class="fas fa-play"></i>
-                            </div>
-                        </div>
-                        <div class="video-info">
-                            <h3 class="video-title">${video.title}</h3>
-                            <div class="video-meta">
-                                <span>${formattedDate}</span>
-                            </div>
-                            <div class="video-stats">
-                                <span><i class="fas fa-eye"></i> ${video.views} views</span>
-                                <span><i class="fas fa-thumbs-up"></i> ${video.likes}</span>
-                            </div>
-                            <div class="channel-info">
-                                <img src="https://picsum.photos/seed/${video.channelId}/100/100.jpg" alt="${video.channel}" class="channel-avatar">
-                                <span class="channel-name">${video.channel}</span>
-                            </div>
-                        </div>
-                    `;
-                    
-                    videoGrid.appendChild(videoCard);
-                    
-                    // Add hover event for video preview
-                    const videoPreview = videoCard.querySelector('.video-preview');
-                    videoCard.addEventListener('mouseenter', () => {
-                        videoPreview.play();
-                    });
-                    
-                    videoCard.addEventListener('mouseleave', () => {
-                        videoPreview.pause();
-                        videoPreview.currentTime = 0;
-                    });
-                    
-                    // Add click event to play button
-                    const playBtn = videoCard.querySelector('.play-btn');
-                    playBtn.addEventListener('click', () => {
-                        openVideoModal(video);
-                    });
-                });
-                
-                loadingIndicator.style.display = 'none';
-                videoGrid.style.display = 'grid';
-            }
-            
-            // Open video modal and embed player
-            function openVideoModal(video) {
-                modalTitle.textContent = video.title;
-                videoPlayer.innerHTML = `
-                    <iframe 
-                        src="https://www.youtube.com/embed/${video.id}?autoplay=1" 
-                        frameborder="0" 
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-                        allowfullscreen>
-                    </iframe>
-                `;
-                videoModal.style.display = 'flex';
-                document.body.style.overflow = 'hidden';
-            }
-            
-            // Close video modal
-            function closeVideoModal() {
-                videoModal.style.display = 'none';
-                videoPlayer.innerHTML = '';
-                document.body.style.overflow = 'auto';
-            }
-            
-            // Show about information
-            function showAbout() {
-                alert('AI Video Explorer\n\nThis application displays the top 10 most viewed Artificial Intelligence videos on YouTube from the past week.\n\nVideos autoplay on hover for a quick preview. Click the play button to watch the full video.\n\nTo use with real YouTube data, replace "YOUR_YOUTUBE_API_KEY" with your actual YouTube Data API key.');
-            }
-            
-            // Initialize the app
-            init();
+        }
+
+        setInterval(drawMatrix, 35);
+
+        // Resize canvas when window is resized
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
         });
+
+        // YouTube API configuration - Replace with your own API key
+        // const API_KEY = 'YOUR_YOUTUBE_API_KEY';
+
+        fetch('config.json')
+                .then(response => response.json())
+                .then(config => {
+                    if (config.API_KEY) {
+                        API_KEY = config.API_KEY;
+                    }
+                })
+                .catch(() => {
+                    // If config.json not found, use default key
+                });
+        const API_URL = 'https://www.googleapis.com/youtube/v3/';
+        
+        // DOM elements
+        const videoGrid = document.getElementById('videoGrid');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const videoModal = document.getElementById('videoModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const closeModal = document.getElementById('closeModal');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const aboutBtn = document.getElementById('aboutBtn');
+        
+        // Sample video data (in case API key is not provided)
+        const sampleVideos = [
+            {
+                id: 'video1',
+                title: 'The Future of Artificial Intelligence: What to Expect in the Next Decade',
+                channel: 'TechVision',
+                channelId: 'UC123456789',
+                thumbnail: 'https://picsum.photos/seed/ai1/640/360.jpg',
+                views: '2.4M',
+                likes: '120K',
+                publishedAt: '2023-05-15'
+            },
+            {
+                id: 'video2',
+                title: 'How AI is Revolutionizing Healthcare: Breakthrough Technologies',
+                channel: 'HealthTech Insights',
+                channelId: 'UC987654321',
+                thumbnail: 'https://picsum.photos/seed/ai2/640/360.jpg',
+                views: '1.8M',
+                likes: '95K',
+                publishedAt: '2023-05-14'
+            },
+            {
+                id: 'video3',
+                title: 'Building Your First AI Model: A Beginner\'s Guide',
+                channel: 'AI Academy',
+                channelId: 'UC456789123',
+                thumbnail: 'https://picsum.photos/seed/ai3/640/360.jpg',
+                views: '1.5M',
+                likes: '85K',
+                publishedAt: '2023-05-13'
+            },
+            {
+                id: 'video4',
+                title: 'The Ethics of Artificial Intelligence: Challenges and Solutions',
+                channel: 'Tech Ethics',
+                channelId: 'UC789123456',
+                thumbnail: 'https://picsum.photos/seed/ai4/640/360.jpg',
+                views: '1.2M',
+                likes: '78K',
+                publishedAt: '2023-05-12'
+            },
+            {
+                id: 'video5',
+                title: 'AI vs Human Intelligence: The Ultimate Showdown',
+                channel: 'Future Tech',
+                channelId: 'UC321654987',
+                thumbnail: 'https://picsum.photos/seed/ai5/640/360.jpg',
+                views: '1.1M',
+                likes: '65K',
+                publishedAt: '2023-05-11'
+            },
+            {
+                id: 'video6',
+                title: 'How Deep Learning Works: Explained Simply',
+                channel: 'AI Simplified',
+                channelId: 'UC654987321',
+                thumbnail: 'https://picsum.photos/seed/ai6/640/360.jpg',
+                views: '980K',
+                likes: '52K',
+                publishedAt: '2023-05-10'
+            },
+            {
+                id: 'video7',
+                title: 'The Impact of AI on Jobs: What You Need to Know',
+                channel: 'Economy Today',
+                channelId: 'UC147258369',
+                thumbnail: 'https://picsum.photos/seed/ai7/640/360.jpg',
+                views: '850K',
+                likes: '48K',
+                publishedAt: '2023-05-09'
+            },
+            {
+                id: 'video8',
+                title: 'GPT-5: The Next Generation of Language Models',
+                channel: 'AI Research Hub',
+                channelId: 'UC369147258',
+                thumbnail: 'https://picsum.photos/seed/ai8/640/360.jpg',
+                views: '780K',
+                likes: '45K',
+                publishedAt: '2023-05-08'
+            },
+            {
+                id: 'video9',
+                title: 'AI in Autonomous Vehicles: How Self-Driving Cars Work',
+                channel: 'Auto Tech',
+                channelId: 'UC258369147',
+                thumbnail: 'https://picsum.photos/seed/ai9/640/360.jpg',
+                views: '720K',
+                likes: '42K',
+                publishedAt: '2023-05-07'
+            },
+            {
+                id: 'video10',
+                title: 'The History of Artificial Intelligence: From Turing to Today',
+                channel: 'Tech History',
+                channelId: 'UC147258963',
+                thumbnail: 'https://picsum.photos/seed/ai10/640/360.jpg',
+                views: '650K',
+                likes: '38K',
+                publishedAt: '2023-05-06'
+            }
+        ];
+        
+        // Initialize the app
+        function init() {
+            loadVideos();
+            
+            // Event listeners
+            closeModal.addEventListener('click', closeVideoModal);
+            refreshBtn.addEventListener('click', loadVideos);
+            aboutBtn.addEventListener('click', showAbout);
+            
+            // Close modal when clicking outside
+            window.addEventListener('click', function(event) {
+                if (event.target === videoModal) {
+                    closeVideoModal();
+                }
+            });
+        }
+        
+        // Load videos from YouTube API or use sample data
+        function loadVideos() {
+            loadingIndicator.style.display = 'block';
+            videoGrid.style.display = 'none';
+            
+            // If API key is not provided, use sample data
+            if (API_KEY === 'YOUR_YOUTUBE_API_KEY') {
+                setTimeout(() => {
+                    displayVideos(sampleVideos);
+                }, 1500);
+            } else {
+                // Fetch from YouTube API
+                fetchTopAIVideos()
+                    .then(videos => {
+                        displayVideos(videos);
+                    })
+                    .catch(error => {
+                        console.error('Error fetching videos:', error);
+                        // Fallback to sample data
+                        displayVideos(sampleVideos);
+                    });
+            }
+        }
+        
+        // Fetch top AI videos from YouTube API
+        async function fetchTopAIVideos() {
+            // Calculate date one week ago
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            const publishedAfter = oneWeekAgo.toISOString();
+            
+            // First, search for AI videos published in the last week
+            const searchUrl = `${API_URL}search?part=snippet&q=Artificial%20Intelligence&type=video&order=viewCount&publishedAfter=${publishedAfter}&maxResults=50&key=${API_KEY}`;
+            
+            const searchResponse = await fetch(searchUrl);
+            const searchData = await searchResponse.json();
+            
+            if (!searchData.items || searchData.items.length === 0) {
+                throw new Error('No videos found');
+            }
+            
+            // Extract video IDs
+            const videoIds = searchData.items.map(item => item.id.videoId).join(',');
+            
+            // Get video details including statistics
+            const videosUrl = `${API_URL}videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`;
+            const videosResponse = await fetch(videosUrl);
+            const videosData = await videosResponse.json();
+            
+            // Sort by view count and take top 10
+            const sortedVideos = videosData.items
+                .sort((a, b) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount))
+                .slice(0, 10);
+            
+            // Format data for display
+            return sortedVideos.map(video => ({
+                id: video.id,
+                title: video.snippet.title,
+                channel: video.snippet.channelTitle,
+                channelId: video.snippet.channelId,
+                thumbnail: video.snippet.thumbnails.high.url,
+                views: formatViewCount(video.statistics.viewCount),
+                likes: formatViewCount(video.statistics.likeCount),
+                publishedAt: video.snippet.publishedAt
+            }));
+        }
+        
+        // Format view count (e.g., 1500000 -> 1.5M)
+        function formatViewCount(count) {
+            if (count >= 1000000) {
+                return (count / 1000000).toFixed(1) + 'M';
+            } else if (count >= 1000) {
+                return (count / 1000).toFixed(1) + 'K';
+            } else {
+                return count.toString();
+            }
+        }
+        
+        // Display videos in the grid
+        function displayVideos(videos) {
+            videoGrid.innerHTML = '';
+            
+            videos.forEach(video => {
+                const videoCard = document.createElement('div');
+                videoCard.className = 'video-card';
+                
+                // Format date
+                const publishDate = new Date(video.publishedAt);
+                const formattedDate = publishDate.toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric',
+                    year: 'numeric'
+                });
+                
+                videoCard.innerHTML = `
+                    <div class="thumbnail-container">
+                        <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail">
+                        <video class="video-preview" muted loop>
+                            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <div class="play-btn" data-video-id="${video.id}">
+                            <i class="fas fa-play"></i>
+                        </div>
+                    </div>
+                    <div class="video-info">
+                        <h3 class="video-title">${video.title}</h3>
+                        <div class="video-meta">
+                            <span>${formattedDate}</span>
+                        </div>
+                        <div class="video-stats">
+                            <span><i class="fas fa-eye"></i> ${video.views} views</span>
+                            <span><i class="fas fa-thumbs-up"></i> ${video.likes}</span>
+                        </div>
+                        <div class="channel-info">
+                            <img src="https://picsum.photos/seed/${video.channelId}/100/100.jpg" alt="${video.channel}" class="channel-avatar">
+                            <span class="channel-name">${video.channel}</span>
+                        </div>
+                    </div>
+                `;
+                
+                videoGrid.appendChild(videoCard);
+                
+                // Add hover event for video preview
+                const videoPreview = videoCard.querySelector('.video-preview');
+                videoCard.addEventListener('mouseenter', () => {
+                    videoPreview.play();
+                });
+                
+                videoCard.addEventListener('mouseleave', () => {
+                    videoPreview.pause();
+                    videoPreview.currentTime = 0;
+                });
+                
+                // Add click event to play button
+                const playBtn = videoCard.querySelector('.play-btn');
+                playBtn.addEventListener('click', () => {
+                    openVideoModal(video);
+                });
+            });
+            
+            loadingIndicator.style.display = 'none';
+            videoGrid.style.display = 'grid';
+        }
+        
+        // Open video modal and embed player
+        function openVideoModal(video) {
+            modalTitle.textContent = `[ ${video.title} ]`;
+            videoPlayer.innerHTML = `
+                <iframe 
+                    src="https://www.youtube.com/embed/${video.id}?autoplay=1" 
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen>
+                </iframe>
+            `;
+            videoModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // Close video modal
+        function closeVideoModal() {
+            videoModal.style.display = 'none';
+            videoPlayer.innerHTML = '';
+            document.body.style.overflow = 'auto';
+        }
+        
+        // Show about information
+        function showAbout() {
+            alert(`[ SYSTEM INFORMATION ]
+
+AI VIDEO EXPLORER v2.0
+NEURAL PROCESSOR: QUANTUM
+STATUS: OPERATIONAL
+
+This application displays the top 10 most viewed Artificial Intelligence videos on YouTube from the past week.
+
+FEATURES:
+• Videos autoplay on hover for preview
+• Matrix-style neural interface
+• Real-time data streaming
+
+To use with real YouTube data, replace "YOUR_YOUTUBE_API_KEY" with your actual YouTube Data API key.
+
+[ END TRANSMISSION ]`);
+        }
+        
+        // Initialize the app
+        init();
     </script>
 </body>
 </html>
