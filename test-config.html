@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Config Test</title>
+</head>
+<body>
+    <h1>Configuration Test</h1>
+    <div id="result"></div>
+
+    <script>
+        async function testConfig() {
+            const resultDiv = document.getElementById('result');
+            
+            try {
+                console.log('Attempting to fetch config.json...');
+                const response = await fetch('config.json');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const config = await response.json();
+                console.log('Config loaded:', config);
+                
+                const apiKey = config.API_KEY || 'NOT_FOUND';
+                
+                resultDiv.innerHTML = `
+                    <h2>Config Test Results:</h2>
+                    <p><strong>Status:</strong> ✅ Config loaded successfully</p>
+                    <p><strong>API Key Found:</strong> ${apiKey !== 'NOT_FOUND' ? '✅ Yes' : '❌ No'}</p>
+                    <p><strong>API Key Preview:</strong> ${apiKey.substring(0, 10)}...</p>
+                    <p><strong>Full Config:</strong></p>
+                    <pre>${JSON.stringify(config, null, 2)}</pre>
+                `;
+                
+            } catch (error) {
+                console.error('Config test failed:', error);
+                resultDiv.innerHTML = `
+                    <h2>Config Test Results:</h2>
+                    <p><strong>Status:</strong> ❌ Failed to load config</p>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p><strong>Suggestion:</strong> Make sure you're running this through a web server (not file://)</p>
+                `;
+            }
+        }
+        
+        // Run test when page loads
+        testConfig();
+    </script>
+</body>
+</html>

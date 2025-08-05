@@ -559,7 +559,7 @@
                 const response = await fetch('config.json');
                 const config = await response.json();
                 API_KEY = config.API_KEY || config.youtube_api_key || 'YOUR_YOUTUBE_API_KEY';
-                console.log('Configuration loaded successfully');
+                console.log('Configuration loaded successfully. API_KEY:', API_KEY.substring(0, 10) + '...');
                 return config;
             } catch (error) {
                 console.warn('Could not load config.json, using default settings:', error);
@@ -707,19 +707,25 @@
             loadingIndicator.style.display = 'block';
             videoGrid.style.display = 'none';
             
+            console.log('Current API_KEY:', API_KEY.substring(0, 10) + '...');
+            
             // If API key is not provided, use sample data
             if (API_KEY === 'YOUR_YOUTUBE_API_KEY') {
+                console.log('Using sample data (no valid API key)');
                 setTimeout(() => {
                     displayVideos(sampleVideos);
                 }, 1500);
             } else {
+                console.log('Attempting to fetch from YouTube API...');
                 // Fetch from YouTube API
                 fetchTopAIVideos()
                     .then(videos => {
+                        console.log('Successfully fetched', videos.length, 'videos from API');
                         displayVideos(videos);
                     })
                     .catch(error => {
                         console.error('Error fetching videos:', error);
+                        console.log('Falling back to sample data');
                         // Fallback to sample data
                         displayVideos(sampleVideos);
                     });
@@ -728,45 +734,67 @@
         
         // Fetch top AI videos from YouTube API
         async function fetchTopAIVideos() {
-            // Calculate date one week ago
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-            const publishedAfter = oneWeekAgo.toISOString();
-            
-            // First, search for AI videos published in the last week
-            const searchUrl = `${API_URL}search?part=snippet&q=Artificial%20Intelligence&type=video&order=viewCount&publishedAfter=${publishedAfter}&maxResults=50&key=${API_KEY}`;
-            
-            const searchResponse = await fetch(searchUrl);
-            const searchData = await searchResponse.json();
-            
-            if (!searchData.items || searchData.items.length === 0) {
-                throw new Error('No videos found');
+            try {
+                // Calculate date one week ago
+                const oneWeekAgo = new Date();
+                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                const publishedAfter = oneWeekAgo.toISOString();
+                
+                console.log('Searching for videos published after:', publishedAfter);
+                
+                // First, search for AI videos published in the last week
+                const searchUrl = `${API_URL}search?part=snippet&q=Artificial%20Intelligence&type=video&order=viewCount&publishedAfter=${publishedAfter}&maxResults=50&key=${API_KEY}`;
+                
+                console.log('Making search request to YouTube API...');
+                const searchResponse = await fetch(searchUrl);
+                const searchData = await searchResponse.json();
+                
+                console.log('Search response:', searchData);
+                
+                if (searchData.error) {
+                    throw new Error(`YouTube API Error: ${searchData.error.message}`);
+                }
+                
+                if (!searchData.items || searchData.items.length === 0) {
+                    throw new Error('No videos found');
+                }
+                
+                // Extract video IDs
+                const videoIds = searchData.items.map(item => item.id.videoId).join(',');
+                console.log('Found video IDs:', videoIds);
+                
+                // Get video details including statistics
+                const videosUrl = `${API_URL}videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`;
+                console.log('Getting video details...');
+                const videosResponse = await fetch(videosUrl);
+                const videosData = await videosResponse.json();
+                
+                console.log('Videos response:', videosData);
+                
+                if (videosData.error) {
+                    throw new Error(`YouTube API Error: ${videosData.error.message}`);
+                }
+                
+                // Sort by view count and take top 10
+                const sortedVideos = videosData.items
+                    .sort((a, b) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount))
+                    .slice(0, 10);
+                
+                // Format data for display
+                return sortedVideos.map(video => ({
+                    id: video.id,
+                    title: video.snippet.title,
+                    channel: video.snippet.channelTitle,
+                    channelId: video.snippet.channelId,
+                    thumbnail: video.snippet.thumbnails.high.url,
+                    views: formatViewCount(video.statistics.viewCount),
+                    likes: formatViewCount(video.statistics.likeCount),
+                    publishedAt: video.snippet.publishedAt
+                }));
+            } catch (error) {
+                console.error('Error in fetchTopAIVideos:', error);
+                throw error;
             }
-            
-            // Extract video IDs
-            const videoIds = searchData.items.map(item => item.id.videoId).join(',');
-            
-            // Get video details including statistics
-            const videosUrl = `${API_URL}videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`;
-            const videosResponse = await fetch(videosUrl);
-            const videosData = await videosResponse.json();
-            
-            // Sort by view count and take top 10
-            const sortedVideos = videosData.items
-                .sort((a, b) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount))
-                .slice(0, 10);
-            
-            // Format data for display
-            return sortedVideos.map(video => ({
-                id: video.id,
-                title: video.snippet.title,
-                channel: video.snippet.channelTitle,
-                channelId: video.snippet.channelId,
-                thumbnail: video.snippet.thumbnails.high.url,
-                views: formatViewCount(video.statistics.viewCount),
-                likes: formatViewCount(video.statistics.likeCount),
-                publishedAt: video.snippet.publishedAt
-            }));
         }
         
         // Format view count (e.g., 1500000 -> 1.5M)
