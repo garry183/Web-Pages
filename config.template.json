@@ -1,5 +1,5 @@
 {
-    "API_KEY": "AIzaSyAC2aRLAFl_VfV9eJSKTNX6VKqbN1Y0xKE",
+    "API_KEY": "YOUR_YOUTUBE_API_KEY",
     "app_settings": {
         "max_results": 50,
         "videos_to_display": 10,

@@ -549,10 +549,23 @@
             canvas.height = window.innerHeight;
         });
 
-        // YouTube API configuration - Replace with your own API key
-         const API_KEY = API_KEY;
-
+        // YouTube API configuration - loaded from config.json
+        let API_KEY = 'YOUR_YOUTUBE_API_KEY'; // fallback value
         const API_URL = 'https://www.googleapis.com/youtube/v3/';
+        
+        // Load configuration from external file
+        async function loadConfig() {
+            try {
+                const response = await fetch('config.json');
+                const config = await response.json();
+                API_KEY = config.API_KEY || config.youtube_api_key || 'YOUR_YOUTUBE_API_KEY';
+                console.log('Configuration loaded successfully');
+                return config;
+            } catch (error) {
+                console.warn('Could not load config.json, using default settings:', error);
+                return null;
+            }
+        }
         
         // DOM elements
         const videoGrid = document.getElementById('videoGrid');
@@ -669,7 +682,11 @@
         ];
         
         // Initialize the app
-        function init() {
+        async function init() {
+            // Load configuration first
+            await loadConfig();
+            
+            // Then load videos
             loadVideos();
             
             // Event listeners
