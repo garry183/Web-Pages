@@ -472,6 +472,9 @@
             <button class="control-btn" id="aboutBtn">
                 <i class="fas fa-info-circle"></i> SYSTEM INFO
             </button>
+            <button class="control-btn" id="diagnosticsBtn">
+                <i class="fas fa-heartbeat"></i> DIAGNOSTICS
+            </button>
         </div>
 
         <div id="loadingIndicator" class="loading">
@@ -504,7 +507,40 @@
         </footer>
     </div>
 
+    <!-- Self-Healing Service -->
+    <script src="self-healing.js"></script>
+
     <script>
+        // Initialize Self-Healing Service
+        const selfHealing = new SelfHealingService({
+            retryAttempts: 3,
+            retryDelay: 1000,
+            maxRetryDelay: 15000,
+            performanceThreshold: 8000,
+            healthCheckInterval: 45000,
+            cacheExpiryTime: 30 * 60 * 1000 // 30 minutes
+        });
+
+        // Listen for self-healing events
+        window.addEventListener('self-healing:network-recovered', () => {
+            console.log('🌐 Network recovered - refreshing data');
+            loadVideos();
+        });
+
+        window.addEventListener('self-healing:health-update', (event) => {
+            console.log('🏥 Health status update:', event.detail);
+            updateSystemStatus(event.detail);
+        });
+
+        window.addEventListener('self-healing:cleanup-performed', () => {
+            console.log('🧹 Memory cleanup performed');
+        });
+
+        window.addEventListener('self-healing:recovery-attempted', () => {
+            console.log('🔄 System recovery attempted - reloading data');
+            loadVideos();
+        });
+
         // Matrix Rain Effect
         const canvas = document.getElementById('matrix-bg');
         const ctx = canvas.getContext('2d');
@@ -541,7 +577,7 @@
             }
         }
 
-        setInterval(drawMatrix, 35);
+        window.matrixInterval = setInterval(drawMatrix, 35);
 
         // Resize canvas when window is resized
         window.addEventListener('resize', function() {
@@ -549,21 +585,73 @@
             canvas.height = window.innerHeight;
         });
 
-        // YouTube API configuration - loaded from config.json
+        // YouTube API configuration - loaded from config.json with self-healing validation
         let API_KEY = 'YOUR_YOUTUBE_API_KEY'; // fallback value
+        let APP_CONFIG = null;
         const API_URL = 'https://www.googleapis.com/youtube/v3/';
         
-        // Load configuration from external file
+        // Enhanced configuration loading with self-healing
         async function loadConfig() {
             try {
-                const response = await fetch('config.json');
-                const config = await response.json();
-                API_KEY = config.API_KEY || config.youtube_api_key || 'YOUR_YOUTUBE_API_KEY';
-                console.log('Configuration loaded successfully. API_KEY:', API_KEY.substring(0, 10) + '...');
-                return config;
+                console.log('📋 Loading configuration with self-healing validation...');
+                const response = await selfHealing.resilientApiCall('config.json');
+                
+                // Use self-healing config validation
+                const { config: validatedConfig, repairs } = selfHealing.validateAndRepairConfig(response);
+                
+                if (repairs.length > 0) {
+                    console.warn('🔧 Configuration was automatically repaired:', repairs);
+                    // Optionally show user notification about repairs
+                    showSystemNotification('Configuration auto-repaired', 'info');
+                }
+                
+                API_KEY = validatedConfig.API_KEY || 'YOUR_YOUTUBE_API_KEY';
+                APP_CONFIG = validatedConfig;
+                
+                // Apply UI settings
+                if (validatedConfig.ui_settings) {
+                    applyUISettings(validatedConfig.ui_settings);
+                }
+                
+                console.log('✅ Configuration loaded and validated');
+                return validatedConfig;
             } catch (error) {
-                console.warn('Could not load config.json, using default settings:', error);
-                return null;
+                console.warn('⚠️ Could not load config.json, using self-healed defaults:', error);
+                
+                // Use self-healing to generate safe defaults
+                const defaultConfig = {
+                    API_KEY: 'YOUR_YOUTUBE_API_KEY',
+                    app_settings: {
+                        max_results: 50,
+                        videos_to_display: 10,
+                        cache_duration_minutes: 30
+                    },
+                    ui_settings: {
+                        matrix_effect_speed: 35,
+                        autoplay_preview: true
+                    }
+                };
+                
+                const { config: healedConfig } = selfHealing.validateAndRepairConfig(defaultConfig);
+                API_KEY = healedConfig.API_KEY;
+                APP_CONFIG = healedConfig;
+                
+                showSystemNotification('Using default configuration', 'warning');
+                return healedConfig;
+            }
+        }
+        
+        // Apply UI settings with error handling
+        function applyUISettings(uiSettings) {
+            try {
+                // Update matrix effect speed
+                if (uiSettings.matrix_effect_speed && typeof uiSettings.matrix_effect_speed === 'number') {
+                    // Clear existing interval and create new one with updated speed
+                    clearInterval(window.matrixInterval);
+                    window.matrixInterval = setInterval(drawMatrix, uiSettings.matrix_effect_speed);
+                }
+            } catch (error) {
+                console.warn('⚠️ Error applying UI settings:', error);
             }
         }
         
@@ -576,6 +664,7 @@
         const closeModal = document.getElementById('closeModal');
         const refreshBtn = document.getElementById('refreshBtn');
         const aboutBtn = document.getElementById('aboutBtn');
+        const diagnosticsBtn = document.getElementById('diagnosticsBtn');
         
         // Sample video data (in case API key is not provided)
         const sampleVideos = [
@@ -693,6 +782,7 @@
             closeModal.addEventListener('click', closeVideoModal);
             refreshBtn.addEventListener('click', loadVideos);
             aboutBtn.addEventListener('click', showAbout);
+            diagnosticsBtn.addEventListener('click', showDiagnostics);
             
             // Close modal when clicking outside
             window.addEventListener('click', function(event) {
@@ -702,97 +792,129 @@
             });
         }
         
-        // Load videos from YouTube API or use sample data
+        // Enhanced video loading with self-healing capabilities
         function loadVideos() {
             loadingIndicator.style.display = 'block';
             videoGrid.style.display = 'none';
             
-            console.log('Current API_KEY:', API_KEY.substring(0, 10) + '...');
+            console.log('📺 Loading videos with self-healing...');
+            
+            // Update loading message based on network status
+            const healthStatus = selfHealing.getHealthStatus();
+            updateLoadingMessage(healthStatus);
             
             // If API key is not provided, use sample data
             if (API_KEY === 'YOUR_YOUTUBE_API_KEY') {
-                console.log('Using sample data (no valid API key)');
+                console.log('🎭 Using sample data (no valid API key)');
                 setTimeout(() => {
                     displayVideos(sampleVideos);
+                    showSystemNotification('Demo mode active - using sample data', 'info');
                 }, 1500);
             } else {
-                console.log('Attempting to fetch from YouTube API...');
-                // Fetch from YouTube API
-                fetchTopAIVideos()
+                console.log('🚀 Attempting to fetch from YouTube API with self-healing...');
+                // Enhanced fetch with self-healing
+                fetchTopAIVideosWithHealing()
                     .then(videos => {
-                        console.log('Successfully fetched', videos.length, 'videos from API');
+                        console.log('✅ Successfully fetched', videos.length, 'videos with self-healing');
                         displayVideos(videos);
+                        showSystemNotification('Data loaded successfully', 'success');
                     })
                     .catch(error => {
-                        console.error('Error fetching videos:', error);
-                        console.log('Falling back to sample data');
-                        // Fallback to sample data
+                        console.error('❌ Error fetching videos even with self-healing:', error);
+                        console.log('🎭 Falling back to sample data');
                         displayVideos(sampleVideos);
+                        showSystemNotification('Using fallback data due to API issues', 'warning');
                     });
             }
         }
         
-        // Fetch top AI videos from YouTube API
-        async function fetchTopAIVideos() {
+        // Update loading message based on system health
+        function updateLoadingMessage(healthStatus) {
+            const loadingText = document.querySelector('#loadingIndicator p');
+            if (loadingText) {
+                if (healthStatus.status.network === 'offline') {
+                    loadingText.textContent = '[ NETWORK OFFLINE - LOADING CACHED DATA... ]';
+                } else if (healthStatus.status.api === 'unhealthy') {
+                    loadingText.textContent = '[ API ISSUES DETECTED - ATTEMPTING RECOVERY... ]';
+                } else if (healthStatus.status.performance === 'degraded') {
+                    loadingText.textContent = '[ PERFORMANCE OPTIMIZATION IN PROGRESS... ]';
+                } else {
+                    loadingText.textContent = '[ INITIALIZING QUANTUM PROCESSOR... ]';
+                }
+            }
+        }
+        
+        // Enhanced API fetching with self-healing
+        async function fetchTopAIVideosWithHealing() {
             try {
                 // Calculate date one week ago
                 const oneWeekAgo = new Date();
                 oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
                 const publishedAfter = oneWeekAgo.toISOString();
                 
-                console.log('Searching for videos published after:', publishedAfter);
+                console.log('🔍 Searching for videos with self-healing protection...');
                 
-                // First, search for AI videos published in the last week
-                const searchUrl = `${API_URL}search?part=snippet&q=Artificial%20Intelligence&type=video&order=viewCount&publishedAfter=${publishedAfter}&maxResults=50&key=${API_KEY}`;
+                // Use self-healing API call for search
+                const searchUrl = `${API_URL}search?part=snippet&q=Artificial%20Intelligence&type=video&order=viewCount&publishedAfter=${publishedAfter}&maxResults=${APP_CONFIG?.app_settings?.max_results || 50}&key=${API_KEY}`;
                 
-                console.log('Making search request to YouTube API...');
-                const searchResponse = await fetch(searchUrl);
-                const searchData = await searchResponse.json();
+                const searchData = await selfHealing.resilientApiCall(searchUrl);
                 
-                console.log('Search response:', searchData);
-                
-                if (searchData.error) {
-                    throw new Error(`YouTube API Error: ${searchData.error.message}`);
+                // Handle API errors or empty results
+                if (searchData.error && searchData.error.type === 'fallback') {
+                    console.log('🎭 API unavailable - using fallback mode');
+                    throw new Error('API unavailable, using fallback data');
                 }
                 
                 if (!searchData.items || searchData.items.length === 0) {
+                    console.log('📭 No videos found in search results');
                     throw new Error('No videos found');
                 }
                 
                 // Extract video IDs
-                const videoIds = searchData.items.map(item => item.id.videoId).join(',');
-                console.log('Found video IDs:', videoIds);
+                const videoIds = searchData.items.map(item => item.id.videoId || item.id).filter(Boolean).join(',');
+                console.log('🎥 Found video IDs:', videoIds);
                 
-                // Get video details including statistics
-                const videosUrl = `${API_URL}videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`;
-                console.log('Getting video details...');
-                const videosResponse = await fetch(videosUrl);
-                const videosData = await videosResponse.json();
-                
-                console.log('Videos response:', videosData);
-                
-                if (videosData.error) {
-                    throw new Error(`YouTube API Error: ${videosData.error.message}`);
+                if (!videoIds) {
+                    throw new Error('No valid video IDs found');
                 }
                 
-                // Sort by view count and take top 10
-                const sortedVideos = videosData.items
-                    .sort((a, b) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount))
-                    .slice(0, 10);
+                // Get video details with self-healing
+                const videosUrl = `${API_URL}videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`;
+                const videosData = await selfHealing.resilientApiCall(videosUrl);
                 
-                // Format data for display
+                if (videosData.error && videosData.error.type === 'fallback') {
+                    console.log('🎭 Video details API unavailable - using fallback');
+                    throw new Error('Video details API unavailable');
+                }
+                
+                if (!videosData.items) {
+                    throw new Error('No video details received');
+                }
+                
+                // Sort by view count and limit results
+                const maxResults = APP_CONFIG?.app_settings?.videos_to_display || 10;
+                const sortedVideos = videosData.items
+                    .filter(video => video && video.id && video.snippet)
+                    .sort((a, b) => {
+                        const aViews = parseInt(b.statistics?.viewCount || 0);
+                        const bViews = parseInt(a.statistics?.viewCount || 0);
+                        return bViews - aViews;
+                    })
+                    .slice(0, maxResults);
+                
+                // Format data with additional validation
                 return sortedVideos.map(video => ({
                     id: video.id,
-                    title: video.snippet.title,
-                    channel: video.snippet.channelTitle,
+                    title: selfHealing.sanitizeString(video.snippet.title),
+                    channel: selfHealing.sanitizeString(video.snippet.channelTitle),
                     channelId: video.snippet.channelId,
-                    thumbnail: video.snippet.thumbnails.high.url,
-                    views: formatViewCount(video.statistics.viewCount),
-                    likes: formatViewCount(video.statistics.likeCount),
+                    thumbnail: video.snippet.thumbnails?.high?.url || video.snippet.thumbnails?.medium?.url || video.snippet.thumbnails?.default?.url,
+                    views: formatViewCount(video.statistics?.viewCount || 0),
+                    likes: formatViewCount(video.statistics?.likeCount || 0),
                     publishedAt: video.snippet.publishedAt
                 }));
             } catch (error) {
-                console.error('Error in fetchTopAIVideos:', error);
+                console.error('🚨 Error in fetchTopAIVideosWithHealing:', error);
                 throw error;
             }
         }
@@ -808,68 +930,368 @@
             }
         }
         
-        // Display videos in the grid
-        function displayVideos(videos) {
-            videoGrid.innerHTML = '';
+        // System notification functionality
+        function showSystemNotification(message, type = 'info') {
+            // Create or get notification container
+            let notificationContainer = document.getElementById('notification-container');
+            if (!notificationContainer) {
+                notificationContainer = document.createElement('div');
+                notificationContainer.id = 'notification-container';
+                notificationContainer.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    z-index: 10000;
+                    max-width: 400px;
+                `;
+                document.body.appendChild(notificationContainer);
+            }
             
-            videos.forEach(video => {
-                const videoCard = document.createElement('div');
-                videoCard.className = 'video-card';
-                
-                // Format date
-                const publishDate = new Date(video.publishedAt);
-                const formattedDate = publishDate.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-                
-                videoCard.innerHTML = `
-                    <div class="thumbnail-container">
-                        <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail">
-                        <video class="video-preview" muted loop>
-                            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                        <div class="play-btn" data-video-id="${video.id}">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                    <div class="video-info">
-                        <h3 class="video-title">${video.title}</h3>
-                        <div class="video-meta">
-                            <span>${formattedDate}</span>
-                        </div>
-                        <div class="video-stats">
-                            <span><i class="fas fa-eye"></i> ${video.views} views</span>
-                            <span><i class="fas fa-thumbs-up"></i> ${video.likes}</span>
-                        </div>
-                        <div class="channel-info">
-                            <img src="https://picsum.photos/seed/${video.channelId}/100/100.jpg" alt="${video.channel}" class="channel-avatar">
-                            <span class="channel-name">${video.channel}</span>
-                        </div>
-                    </div>
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                background: linear-gradient(135deg, rgba(0, 20, 40, 0.95), rgba(0, 10, 30, 0.95));
+                border: 1px solid var(--border);
+                border-radius: 8px;
+                padding: 12px 16px;
+                margin-bottom: 10px;
+                color: var(--light);
+                font-family: 'Courier New', monospace;
+                font-size: 0.9rem;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(10px);
+                opacity: 0;
+                transform: translateX(100%);
+                transition: all 0.3s ease;
+            `;
+            
+            // Set type-specific styling
+            const typeColors = {
+                success: '#00ffcc',
+                warning: '#ffaa00',
+                error: '#ff3366',
+                info: '#00aaff'
+            };
+            
+            const color = typeColors[type] || typeColors.info;
+            notification.style.borderColor = color;
+            
+            // Add icon and message
+            const icons = {
+                success: '✅',
+                warning: '⚠️',
+                error: '❌',
+                info: 'ℹ️'
+            };
+            
+            notification.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: ${color};">${icons[type] || icons.info}</span>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            notificationContainer.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.opacity = '1';
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Auto remove after delay
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 300);
+            }, 4000);
+        }
+        
+        // Update system status display
+        function updateSystemStatus(healthData) {
+            // Add status indicators to the header if they don't exist
+            let statusContainer = document.getElementById('system-status');
+            if (!statusContainer) {
+                statusContainer = document.createElement('div');
+                statusContainer.id = 'system-status';
+                statusContainer.style.cssText = `
+                    position: absolute;
+                    top: 15px;
+                    right: 15px;
+                    display: flex;
+                    gap: 8px;
+                    align-items: center;
                 `;
                 
-                videoGrid.appendChild(videoCard);
+                const header = document.querySelector('header');
+                header.appendChild(statusContainer);
+            }
+            
+            // Create status indicators
+            const indicators = [
+                { key: 'network', icon: '🌐', title: 'Network Status' },
+                { key: 'api', icon: '🔌', title: 'API Status' },
+                { key: 'performance', icon: '⚡', title: 'Performance' }
+            ];
+            
+            statusContainer.innerHTML = indicators.map(indicator => {
+                const status = healthData.status[indicator.key];
+                const color = getStatusColor(status);
                 
-                // Add hover event for video preview
+                return `
+                    <div title="${indicator.title}: ${status}" style="
+                        color: ${color};
+                        font-size: 1.2rem;
+                        cursor: help;
+                        filter: drop-shadow(0 0 3px ${color});
+                    ">${indicator.icon}</div>
+                `;
+            }).join('');
+        }
+        
+        // Get color based on status
+        function getStatusColor(status) {
+            switch (status) {
+                case 'healthy': case 'online': return '#00ffcc';
+                case 'degraded': case 'unhealthy': return '#ffaa00';
+                case 'offline': case 'critical': return '#ff3366';
+                default: return '#888888';
+            }
+        }
+        // Enhanced video display with self-healing memory management
+        function displayVideos(videos) {
+            try {
+                // Clear existing content with memory cleanup
+                clearVideoGrid();
+                
+                if (!videos || !Array.isArray(videos) || videos.length === 0) {
+                    showEmptyState();
+                    return;
+                }
+                
+                console.log('📺 Displaying', videos.length, 'videos with enhanced error handling');
+                
+                videos.forEach((video, index) => {
+                    try {
+                        if (!video || !video.id) {
+                            console.warn(`⚠️ Invalid video data at index ${index}:`, video);
+                            return;
+                        }
+                        
+                        const videoCard = document.createElement('div');
+                        videoCard.className = 'video-card';
+                        videoCard.setAttribute('data-video-id', video.id);
+                        
+                        // Format date safely
+                        let formattedDate = 'Unknown date';
+                        try {
+                            if (video.publishedAt) {
+                                const publishDate = new Date(video.publishedAt);
+                                if (!isNaN(publishDate.getTime())) {
+                                    formattedDate = publishDate.toLocaleDateString('en-US', {
+                                        month: 'short',
+                                        day: 'numeric',
+                                        year: 'numeric'
+                                    });
+                                }
+                            }
+                        } catch (dateError) {
+                            console.warn('⚠️ Error formatting date for video:', video.id, dateError);
+                        }
+                        
+                        // Create safe thumbnail URL
+                        const thumbnailUrl = video.thumbnail || `https://picsum.photos/seed/${video.id}/640/360.jpg`;
+                        const channelAvatarUrl = `https://picsum.photos/seed/${video.channelId || video.id}/100/100.jpg`;
+                        
+                        videoCard.innerHTML = `
+                            <div class="thumbnail-container">
+                                <img src="${thumbnailUrl}" alt="${video.title || 'Video thumbnail'}" class="thumbnail"
+                                     onerror="this.src='https://picsum.photos/640/360.jpg?${video.id}'">
+                                <video class="video-preview" muted loop preload="none">
+                                    <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                                <div class="play-btn" data-video-id="${video.id}">
+                                    <i class="fas fa-play"></i>
+                                </div>
+                            </div>
+                            <div class="video-info">
+                                <h3 class="video-title">${video.title || 'Untitled Video'}</h3>
+                                <div class="video-meta">
+                                    <span>${formattedDate}</span>
+                                </div>
+                                <div class="video-stats">
+                                    <span><i class="fas fa-eye"></i> ${video.views || '0'} views</span>
+                                    <span><i class="fas fa-thumbs-up"></i> ${video.likes || '0'}</span>
+                                </div>
+                                <div class="channel-info">
+                                    <img src="${channelAvatarUrl}" alt="${video.channel || 'Channel'}" class="channel-avatar"
+                                         onerror="this.src='https://picsum.photos/100/100.jpg?${video.channelId}'">
+                                    <span class="channel-name">${video.channel || 'Unknown Channel'}</span>
+                                </div>
+                            </div>
+                        `;
+                        
+                        videoGrid.appendChild(videoCard);
+                        
+                        // Enhanced hover events with error handling
+                        setupVideoCardEvents(videoCard, video);
+                        
+                    } catch (cardError) {
+                        console.error(`❌ Error creating video card for index ${index}:`, cardError);
+                        // Continue with other videos
+                    }
+                });
+                
+                loadingIndicator.style.display = 'none';
+                videoGrid.style.display = 'grid';
+                
+                console.log('✅ Video display completed successfully');
+                
+            } catch (error) {
+                console.error('❌ Critical error in displayVideos:', error);
+                showErrorState();
+            }
+        }
+        
+        // Setup video card event listeners with error handling
+        function setupVideoCardEvents(videoCard, video) {
+            try {
                 const videoPreview = videoCard.querySelector('.video-preview');
-                videoCard.addEventListener('mouseenter', () => {
-                    videoPreview.play();
-                });
-                
-                videoCard.addEventListener('mouseleave', () => {
-                    videoPreview.pause();
-                    videoPreview.currentTime = 0;
-                });
-                
-                // Add click event to play button
                 const playBtn = videoCard.querySelector('.play-btn');
-                playBtn.addEventListener('click', () => {
-                    openVideoModal(video);
+                
+                if (videoPreview) {
+                    // Enhanced hover events with self-healing
+                    const mouseEnterHandler = () => {
+                        try {
+                            if (APP_CONFIG?.ui_settings?.autoplay_preview !== false && navigator.onLine) {
+                                videoPreview.play().catch(e => {
+                                    console.warn('⚠️ Video preview play failed:', e.message);
+                                });
+                            }
+                        } catch (error) {
+                            console.warn('⚠️ Error in video preview mouseenter:', error);
+                        }
+                    };
+                    
+                    const mouseLeaveHandler = () => {
+                        try {
+                            videoPreview.pause();
+                            videoPreview.currentTime = 0;
+                        } catch (error) {
+                            console.warn('⚠️ Error in video preview mouseleave:', error);
+                        }
+                    };
+                    
+                    videoCard.addEventListener('mouseenter', mouseEnterHandler);
+                    videoCard.addEventListener('mouseleave', mouseLeaveHandler);
+                    
+                    // Store event handlers for cleanup
+                    videoCard._eventHandlers = { mouseEnterHandler, mouseLeaveHandler };
+                }
+                
+                if (playBtn) {
+                    const clickHandler = (event) => {
+                        event.stopPropagation();
+                        try {
+                            openVideoModal(video);
+                        } catch (error) {
+                            console.error('❌ Error opening video modal:', error);
+                            showSystemNotification(`Error playing video: ${video.title}`, 'error');
+                        }
+                    };
+                    
+                    playBtn.addEventListener('click', clickHandler);
+                    playBtn._clickHandler = clickHandler;
+                }
+                
+            } catch (error) {
+                console.error('❌ Error setting up video card events:', error);
+            }
+        }
+        
+        // Clear video grid with proper cleanup
+        function clearVideoGrid() {
+            try {
+                // Clean up existing video elements to prevent memory leaks
+                const existingCards = videoGrid.querySelectorAll('.video-card');
+                existingCards.forEach(card => {
+                    // Pause and cleanup video previews
+                    const preview = card.querySelector('.video-preview');
+                    if (preview) {
+                        preview.pause();
+                        preview.src = '';
+                        preview.load();
+                    }
+                    
+                    // Remove event listeners if they exist
+                    if (card._eventHandlers) {
+                        card.removeEventListener('mouseenter', card._eventHandlers.mouseEnterHandler);
+                        card.removeEventListener('mouseleave', card._eventHandlers.mouseLeaveHandler);
+                    }
+                    
+                    const playBtn = card.querySelector('.play-btn');
+                    if (playBtn && playBtn._clickHandler) {
+                        playBtn.removeEventListener('click', playBtn._clickHandler);
+                    }
                 });
-            });
+                
+                videoGrid.innerHTML = '';
+            } catch (error) {
+                console.error('❌ Error clearing video grid:', error);
+                // Force clear if cleanup fails
+                videoGrid.innerHTML = '';
+            }
+        }
+        
+        // Show empty state
+        function showEmptyState() {
+            videoGrid.innerHTML = `
+                <div style="
+                    grid-column: 1 / -1;
+                    text-align: center;
+                    padding: 60px 20px;
+                    color: var(--gray);
+                ">
+                    <i class="fas fa-video" style="font-size: 3rem; margin-bottom: 20px; color: var(--primary);"></i>
+                    <h3>No Videos Found</h3>
+                    <p>Unable to load video content at this time.</p>
+                    <button class="control-btn" onclick="loadVideos()" style="margin-top: 20px;">
+                        <i class="fas fa-retry"></i> Try Again
+                    </button>
+                </div>
+            `;
+            
+            loadingIndicator.style.display = 'none';
+            videoGrid.style.display = 'grid';
+        }
+        
+        // Show error state
+        function showErrorState() {
+            videoGrid.innerHTML = `
+                <div style="
+                    grid-column: 1 / -1;
+                    text-align: center;
+                    padding: 60px 20px;
+                    color: var(--accent);
+                ">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 20px; color: var(--accent);"></i>
+                    <h3>System Error</h3>
+                    <p>A critical error occurred while loading content.</p>
+                    <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: center;">
+                        <button class="control-btn" onclick="loadVideos()">
+                            <i class="fas fa-retry"></i> Retry
+                        </button>
+                        <button class="control-btn" onclick="selfHealing.attemptRecovery()">
+                            <i class="fas fa-wrench"></i> Self-Heal
+                        </button>
+                    </div>
+                </div>
+            `;
             
             loadingIndicator.style.display = 'none';
             videoGrid.style.display = 'grid';
@@ -897,24 +1319,265 @@
             document.body.style.overflow = 'auto';
         }
         
-        // Show about information
+        // Enhanced about information with self-healing diagnostics
         function showAbout() {
-            alert(`[ SYSTEM INFORMATION ]
-
-AI VIDEO EXPLORER v2.0
-NEURAL PROCESSOR: QUANTUM
-STATUS: OPERATIONAL
-
-This application displays the top 10 most viewed Artificial Intelligence videos on YouTube from the past week.
-
-FEATURES:
-• Videos autoplay on hover for preview
-• Matrix-style neural interface
-• Real-time data streaming
-
-To use with real YouTube data, replace "YOUR_YOUTUBE_API_KEY" with your actual YouTube Data API key.
-
-[ END TRANSMISSION ]`);
+            const diagnostics = selfHealing.getDiagnostics();
+            const healthStatus = selfHealing.getHealthStatus();
+            
+            // Create modal-style about dialog instead of basic alert
+            const aboutModal = document.createElement('div');
+            aboutModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                backdrop-filter: blur(5px);
+            `;
+            
+            aboutModal.innerHTML = `
+                <div style="
+                    background: linear-gradient(135deg, rgba(10, 10, 30, 0.95), rgba(5, 5, 20, 0.95));
+                    border: 1px solid var(--border);
+                    border-radius: 16px;
+                    padding: 30px;
+                    max-width: 600px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    color: var(--light);
+                    font-family: 'Courier New', monospace;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+                ">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <h2 style="color: var(--primary); margin-bottom: 10px;">[ SYSTEM INFORMATION ]</h2>
+                        <div style="color: var(--gray); font-size: 0.9rem;">AI VIDEO EXPLORER v3.0 • SELF-HEALING ENABLED</div>
+                    </div>
+                    
+                    <div style="display: grid; gap: 20px;">
+                        <div>
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🏥 SELF-HEALING STATUS</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
+                                <div>Network: <span style="color: ${getStatusColor(healthStatus.status.network)}">${healthStatus.status.network?.toUpperCase()}</span></div>
+                                <div>API: <span style="color: ${getStatusColor(healthStatus.status.api)}">${healthStatus.status.api?.toUpperCase()}</span></div>
+                                <div>Config: <span style="color: ${getStatusColor(healthStatus.status.config)}">${healthStatus.status.config?.toUpperCase()}</span></div>
+                                <div>Performance: <span style="color: ${getStatusColor(healthStatus.status.performance)}">${healthStatus.status.performance?.toUpperCase()}</span></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">📊 SYSTEM METRICS</h3>
+                            <div style="font-size: 0.9rem; line-height: 1.6;">
+                                • API Calls: ${diagnostics.metrics.apiCalls}<br>
+                                • API Failures: ${diagnostics.metrics.apiFailures}<br>
+                                • Cache Hits: ${diagnostics.metrics.cacheHits}<br>
+                                • Avg Response Time: ${Math.round(diagnostics.metrics.averageResponseTime)}ms<br>
+                                • Cache Size: ${diagnostics.cacheSize} entries<br>
+                                • Last Health Check: ${diagnostics.metrics.lastHealthCheck ? new Date(diagnostics.metrics.lastHealthCheck).toLocaleTimeString() : 'N/A'}
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🛡️ SELF-HEALING FEATURES</h3>
+                            <div style="font-size: 0.9rem; line-height: 1.8;">
+                                • Automatic API retry with exponential backoff<br>
+                                • Configuration validation and auto-repair<br>
+                                • Network recovery and offline handling<br>
+                                • Memory management and cleanup<br>
+                                • Performance monitoring and optimization<br>
+                                • Data integrity validation<br>
+                                • Intelligent caching with health checks<br>
+                                • Graceful degradation on failures
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">⚙️ CONFIGURATION</h3>
+                            <div style="font-size: 0.9rem; line-height: 1.6;">
+                                • API Key: ${API_KEY !== 'YOUR_YOUTUBE_API_KEY' ? 'CONFIGURED' : 'DEMO MODE'}<br>
+                                • Max Results: ${APP_CONFIG?.app_settings?.max_results || 50}<br>
+                                • Videos Display: ${APP_CONFIG?.app_settings?.videos_to_display || 10}<br>
+                                • Cache Duration: ${APP_CONFIG?.app_settings?.cache_duration_minutes || 30} minutes<br>
+                                • Matrix Speed: ${APP_CONFIG?.ui_settings?.matrix_effect_speed || 35}ms<br>
+                                • Autoplay Preview: ${APP_CONFIG?.ui_settings?.autoplay_preview !== false ? 'ENABLED' : 'DISABLED'}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 25px;">
+                        <button style="
+                            background: linear-gradient(135deg, rgba(0, 30, 60, 0.8), rgba(0, 20, 40, 0.8));
+                            border: 1px solid var(--border);
+                            color: var(--light);
+                            padding: 10px 20px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-family: 'Courier New', monospace;
+                        " onclick="this.parentNode.parentNode.parentNode.remove()">
+                            [ CLOSE TRANSMISSION ]
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(aboutModal);
+            
+            // Close on background click
+            aboutModal.addEventListener('click', (e) => {
+                if (e.target === aboutModal) {
+                    aboutModal.remove();
+                }
+            });
+        }
+        
+        // Show diagnostics modal
+        function showDiagnostics() {
+            const diagnostics = selfHealing.getDiagnostics();
+            
+            const diagModal = document.createElement('div');
+            diagModal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.9);
+                z-index: 10000;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                backdrop-filter: blur(5px);
+            `;
+            
+            diagModal.innerHTML = `
+                <div style="
+                    background: linear-gradient(135deg, rgba(10, 10, 30, 0.95), rgba(5, 5, 20, 0.95));
+                    border: 1px solid var(--border);
+                    border-radius: 16px;
+                    padding: 30px;
+                    max-width: 800px;
+                    max-height: 80vh;
+                    overflow-y: auto;
+                    color: var(--light);
+                    font-family: 'Courier New', monospace;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+                ">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <h2 style="color: var(--primary); margin-bottom: 10px;">[ SYSTEM DIAGNOSTICS ]</h2>
+                        <div style="color: var(--gray); font-size: 0.9rem;">Real-time system health monitoring</div>
+                    </div>
+                    
+                    <div style="display: grid; gap: 20px;">
+                        <div style="background: rgba(0, 20, 40, 0.3); padding: 15px; border-radius: 8px;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">📈 Performance Metrics</h3>
+                            <pre style="font-size: 0.8rem; line-height: 1.4; margin: 0;">${JSON.stringify({
+                                apiCalls: diagnostics.metrics.apiCalls,
+                                apiFailures: diagnostics.metrics.apiFailures,
+                                apiRetries: diagnostics.metrics.apiRetries,
+                                successRate: diagnostics.metrics.apiCalls > 0 ? 
+                                    ((diagnostics.metrics.apiCalls - diagnostics.metrics.apiFailures) / diagnostics.metrics.apiCalls * 100).toFixed(1) + '%' : 
+                                    'N/A',
+                                averageResponseTime: Math.round(diagnostics.metrics.averageResponseTime) + 'ms',
+                                cacheHitRatio: (diagnostics.metrics.cacheHits + diagnostics.metrics.cacheMisses) > 0 ?
+                                    (diagnostics.metrics.cacheHits / (diagnostics.metrics.cacheHits + diagnostics.metrics.cacheMisses) * 100).toFixed(1) + '%' :
+                                    'N/A'
+                            }, null, 2)}</pre>
+                        </div>
+                        
+                        <div style="background: rgba(0, 20, 40, 0.3); padding: 15px; border-radius: 8px;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🔧 Configuration Status</h3>
+                            <pre style="font-size: 0.8rem; line-height: 1.4; margin: 0;">${JSON.stringify({
+                                apiKeyConfigured: API_KEY !== 'YOUR_YOUTUBE_API_KEY',
+                                configValidation: diagnostics.healthStatus.config,
+                                networkStatus: diagnostics.healthStatus.network,
+                                apiStatus: diagnostics.healthStatus.api,
+                                performanceStatus: diagnostics.healthStatus.performance
+                            }, null, 2)}</pre>
+                        </div>
+                        
+                        <div style="background: rgba(0, 20, 40, 0.3); padding: 15px; border-radius: 8px;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">💾 System Resources</h3>
+                            <pre style="font-size: 0.8rem; line-height: 1.4; margin: 0;">${JSON.stringify({
+                                cacheEntries: diagnostics.cacheSize,
+                                domNodes: document.querySelectorAll('*').length,
+                                onlineStatus: diagnostics.online,
+                                lastHealthCheck: diagnostics.metrics.lastHealthCheck ? 
+                                    new Date(diagnostics.metrics.lastHealthCheck).toLocaleString() : 'Never',
+                                memory: diagnostics.memory ? {
+                                    used: Math.round(diagnostics.memory.usedJSHeapSize / 1024 / 1024) + ' MB',
+                                    total: Math.round(diagnostics.memory.totalJSHeapSize / 1024 / 1024) + ' MB',
+                                    limit: Math.round(diagnostics.memory.jsHeapSizeLimit / 1024 / 1024) + ' MB'
+                                } : 'Not available'
+                            }, null, 2)}</pre>
+                        </div>
+                        
+                        <div style="background: rgba(0, 20, 40, 0.3); padding: 15px; border-radius: 8px;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🕒 Self-Healing Actions</h3>
+                            <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                                <button onclick="selfHealing.performHealthCheck(); this.textContent='Health Check Performed ✓'" style="
+                                    background: linear-gradient(135deg, rgba(0, 100, 50, 0.8), rgba(0, 70, 35, 0.8));
+                                    border: 1px solid #00aa55;
+                                    color: white;
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-family: 'Courier New', monospace;
+                                    font-size: 0.8rem;
+                                ">Perform Health Check</button>
+                                
+                                <button onclick="selfHealing.performMemoryCleanup(); this.textContent='Memory Cleaned ✓'" style="
+                                    background: linear-gradient(135deg, rgba(0, 60, 100, 0.8), rgba(0, 40, 70, 0.8));
+                                    border: 1px solid #0099cc;
+                                    color: white;
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-family: 'Courier New', monospace;
+                                    font-size: 0.8rem;
+                                ">Clean Memory</button>
+                                
+                                <button onclick="selfHealing.attemptRecovery(); this.textContent='Recovery Attempted ✓'" style="
+                                    background: linear-gradient(135deg, rgba(100, 60, 0, 0.8), rgba(70, 40, 0, 0.8));
+                                    border: 1px solid #cc9900;
+                                    color: white;
+                                    padding: 8px 16px;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-family: 'Courier New', monospace;
+                                    font-size: 0.8rem;
+                                ">Attempt Recovery</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 25px;">
+                        <button style="
+                            background: linear-gradient(135deg, rgba(0, 30, 60, 0.8), rgba(0, 20, 40, 0.8));
+                            border: 1px solid var(--border);
+                            color: var(--light);
+                            padding: 10px 20px;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-family: 'Courier New', monospace;
+                        " onclick="this.parentNode.parentNode.parentNode.remove()">
+                            [ CLOSE DIAGNOSTICS ]
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(diagModal);
+            
+            // Close on background click
+            diagModal.addEventListener('click', (e) => {
+                if (e.target === diagModal) {
+                    diagModal.remove();
+                }
+            });
         }
         
         // Initialize the app
