@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Video Explorer - Top AI Videos This Week</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Self-Healing Framework -->
+    <script src="self-healing-framework.js"></script>
+    <script src="self-healing-components.js"></script>
     <style>
         :root {
             --primary: #00ffcc;
@@ -115,6 +118,77 @@
             gap: 20px;
             margin-bottom: 30px;
             flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .health-indicator {
+            position: relative;
+            margin-left: 20px;
+        }
+
+        .health-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 255, 204, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .health-status:hover {
+            background: rgba(0, 255, 204, 0.2);
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+        }
+
+        .health-status.healthy {
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        .health-status.degraded {
+            border-color: #ffaa00;
+            color: #ffaa00;
+        }
+
+        .health-status.unhealthy {
+            border-color: #ff4444;
+            color: #ff4444;
+            animation: pulse 2s infinite;
+        }
+
+        .health-details {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            min-width: 180px;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+        }
+
+        .health-component {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.8rem;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.1);
+        }
+
+        .health-component:last-child {
+            border-bottom: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .control-btn {
@@ -472,6 +546,18 @@
             <button class="control-btn" id="aboutBtn">
                 <i class="fas fa-info-circle"></i> SYSTEM INFO
             </button>
+            <div class="health-indicator" id="healthIndicator">
+                <div class="health-status" id="healthStatus">
+                    <i class="fas fa-heartbeat"></i>
+                    <span>SYSTEM: <span id="healthText">INITIALIZING</span></span>
+                </div>
+                <div class="health-details" id="healthDetails" style="display: none;">
+                    <div class="health-component">API: <span id="apiHealth">-</span></div>
+                    <div class="health-component">Config: <span id="configHealth">-</span></div>
+                    <div class="health-component">UI: <span id="uiHealth">-</span></div>
+                    <div class="health-component">Cache: <span id="cacheHealth">-</span></div>
+                </div>
+            </div>
         </div>
 
         <div id="loadingIndicator" class="loading">
@@ -553,9 +639,23 @@
         let API_KEY = 'YOUR_YOUTUBE_API_KEY'; // fallback value
         const API_URL = 'https://www.googleapis.com/youtube/v3/';
         
-        // Load configuration from external file
+        // Initialize Self-Healing Framework
+        let selfHealingFramework = null;
+        
+        // Load configuration from external file with self-healing support
         async function loadConfig() {
             try {
+                if (selfHealingFramework) {
+                    // Use self-healing framework for config management
+                    const config = await selfHealingFramework.getConfig('main');
+                    if (config) {
+                        API_KEY = config.API_KEY || config.youtube_api_key || 'YOUR_YOUTUBE_API_KEY';
+                        console.log('Configuration loaded via self-healing framework. API_KEY:', API_KEY.substring(0, 10) + '...');
+                        return config;
+                    }
+                }
+                
+                // Fallback to direct fetch
                 const response = await fetch('config.json');
                 const config = await response.json();
                 API_KEY = config.API_KEY || config.youtube_api_key || 'YOUR_YOUTUBE_API_KEY';
@@ -563,6 +663,9 @@
                 return config;
             } catch (error) {
                 console.warn('Could not load config.json, using default settings:', error);
+                if (selfHealingFramework) {
+                    selfHealingFramework.reportError('warn', 'Config load failed, using defaults', error);
+                }
                 return null;
             }
         }
@@ -683,11 +786,40 @@
         
         // Initialize the app
         async function init() {
-            // Load configuration first
-            await loadConfig();
-            
-            // Then load videos
-            loadVideos();
+            try {
+                // Initialize Self-Healing Framework first
+                console.log('[App] Initializing Self-Healing Framework...');
+                selfHealingFramework = new SelfHealingFramework({
+                    retryAttempts: 3,
+                    retryDelay: 1000,
+                    circuitBreakerThreshold: 3,
+                    circuitBreakerTimeout: 30000,
+                    healthCheckInterval: 60000,
+                    autoRecovery: true,
+                    logLevel: 'info'
+                });
+                
+                // Wait a moment for framework to initialize
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Setup health indicator UI
+                setupHealthIndicator();
+                
+                // Load configuration with self-healing support
+                await loadConfig();
+                
+                // Load videos with enhanced error handling
+                await loadVideos();
+                
+                console.log('[App] Application initialized successfully with self-healing capabilities');
+                
+            } catch (error) {
+                console.error('[App] Failed to initialize application:', error);
+                
+                // Fallback initialization without self-healing
+                await loadConfig();
+                loadVideos();
+            }
             
             // Event listeners
             closeModal.addEventListener('click', closeVideoModal);
@@ -703,32 +835,71 @@
         }
         
         // Load videos from YouTube API or use sample data
-        function loadVideos() {
+        async function loadVideos() {
             loadingIndicator.style.display = 'block';
             videoGrid.style.display = 'none';
             
             console.log('Current API_KEY:', API_KEY.substring(0, 10) + '...');
             
-            // If API key is not provided, use sample data
-            if (API_KEY === 'YOUR_YOUTUBE_API_KEY') {
-                console.log('Using sample data (no valid API key)');
-                setTimeout(() => {
-                    displayVideos(sampleVideos);
-                }, 1500);
-            } else {
-                console.log('Attempting to fetch from YouTube API...');
-                // Fetch from YouTube API
-                fetchTopAIVideos()
-                    .then(videos => {
-                        console.log('Successfully fetched', videos.length, 'videos from API');
+            try {
+                let videos;
+                
+                // Check cache first if self-healing framework is available
+                if (selfHealingFramework) {
+                    const cachedVideos = selfHealingFramework.getCachedData('ai_videos');
+                    if (cachedVideos) {
+                        console.log('[App] Using cached video data');
+                        displayVideos(cachedVideos);
+                        return;
+                    }
+                }
+                
+                // If API key is not provided, use sample data
+                if (API_KEY === 'YOUR_YOUTUBE_API_KEY') {
+                    console.log('Using sample data (no valid API key)');
+                    videos = sampleVideos;
+                    setTimeout(() => {
                         displayVideos(videos);
-                    })
-                    .catch(error => {
-                        console.error('Error fetching videos:', error);
-                        console.log('Falling back to sample data');
-                        // Fallback to sample data
-                        displayVideos(sampleVideos);
-                    });
+                    }, 1500);
+                } else {
+                    console.log('Attempting to fetch from YouTube API...');
+                    
+                    // Use self-healing API calls if available
+                    if (selfHealingFramework) {
+                        try {
+                            videos = await fetchTopAIVideosWithSelfHealing();
+                        } catch (error) {
+                            console.log('Self-healing API call failed, falling back to sample data');
+                            videos = sampleVideos;
+                        }
+                    } else {
+                        // Fallback to original method
+                        try {
+                            videos = await fetchTopAIVideos();
+                        } catch (error) {
+                            console.error('Error fetching videos:', error);
+                            console.log('Falling back to sample data');
+                            videos = sampleVideos;
+                        }
+                    }
+                }
+                
+                // Cache the results if self-healing framework is available
+                if (selfHealingFramework && videos) {
+                    selfHealingFramework.cacheData('ai_videos', videos, 300000); // 5 minutes cache
+                }
+                
+                console.log('Successfully loaded', videos.length, 'videos');
+                displayVideos(videos);
+                
+            } catch (error) {
+                console.error('Critical error in loadVideos:', error);
+                if (selfHealingFramework) {
+                    selfHealingFramework.reportError('error', 'Critical error loading videos', error);
+                }
+                
+                // Final fallback to sample data
+                displayVideos(sampleVideos);
             }
         }
         
@@ -808,71 +979,258 @@
             }
         }
         
-        // Display videos in the grid
-        function displayVideos(videos) {
-            videoGrid.innerHTML = '';
+        // Fetch top AI videos using self-healing framework
+        async function fetchTopAIVideosWithSelfHealing() {
+            try {
+                // Calculate date one week ago
+                const oneWeekAgo = new Date();
+                oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+                const publishedAfter = oneWeekAgo.toISOString();
+                
+                console.log('Searching for videos published after:', publishedAfter);
+                
+                // First, search for AI videos published in the last week using self-healing API
+                const searchUrl = `${API_URL}search?part=snippet&q=Artificial%20Intelligence&type=video&order=viewCount&publishedAfter=${publishedAfter}&maxResults=50&key=${API_KEY}`;
+                
+                console.log('Making resilient search request to YouTube API...');
+                const searchResponse = await selfHealingFramework.makeResilientAPICall(searchUrl);
+                const searchData = await searchResponse.json();
+                
+                console.log('Search response received');
+                
+                if (searchData.error) {
+                    throw new Error(`YouTube API Error: ${searchData.error.message}`);
+                }
+                
+                if (!searchData.items || searchData.items.length === 0) {
+                    throw new Error('No videos found');
+                }
+                
+                // Extract video IDs
+                const videoIds = searchData.items.map(item => item.id.videoId).join(',');
+                console.log('Found video IDs:', videoIds);
+                
+                // Get video details including statistics using self-healing API
+                const videosUrl = `${API_URL}videos?part=snippet,statistics&id=${videoIds}&key=${API_KEY}`;
+                console.log('Getting video details with resilient API call...');
+                const videosResponse = await selfHealingFramework.makeResilientAPICall(videosUrl);
+                const videosData = await videosResponse.json();
+                
+                console.log('Videos response received');
+                
+                if (videosData.error) {
+                    throw new Error(`YouTube API Error: ${videosData.error.message}`);
+                }
+                
+                // Sort by view count and take top 10
+                const sortedVideos = videosData.items
+                    .sort((a, b) => parseInt(b.statistics.viewCount) - parseInt(a.statistics.viewCount))
+                    .slice(0, 10);
+                
+                // Format data for display
+                return sortedVideos.map(video => ({
+                    id: video.id,
+                    title: video.snippet.title,
+                    channel: video.snippet.channelTitle,
+                    channelId: video.snippet.channelId,
+                    thumbnail: video.snippet.thumbnails.high.url,
+                    views: formatViewCount(video.statistics.viewCount),
+                    likes: formatViewCount(video.statistics.likeCount),
+                    publishedAt: video.snippet.publishedAt
+                }));
+            } catch (error) {
+                console.error('Error in fetchTopAIVideosWithSelfHealing:', error);
+                if (selfHealingFramework) {
+                    selfHealingFramework.reportError('error', 'YouTube API fetch failed', error);
+                }
+                throw error;
+            }
+        }
+        
+        // Setup health indicator UI
+        function setupHealthIndicator() {
+            const healthStatus = document.getElementById('healthStatus');
+            const healthDetails = document.getElementById('healthDetails');
+            const healthText = document.getElementById('healthText');
             
-            videos.forEach(video => {
-                const videoCard = document.createElement('div');
-                videoCard.className = 'video-card';
-                
-                // Format date
-                const publishDate = new Date(video.publishedAt);
-                const formattedDate = publishDate.toLocaleDateString('en-US', { 
-                    month: 'short', 
-                    day: 'numeric',
-                    year: 'numeric'
-                });
-                
-                videoCard.innerHTML = `
-                    <div class="thumbnail-container">
-                        <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail">
-                        <video class="video-preview" muted loop>
-                            <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                        <div class="play-btn" data-video-id="${video.id}">
-                            <i class="fas fa-play"></i>
-                        </div>
-                    </div>
-                    <div class="video-info">
-                        <h3 class="video-title">${video.title}</h3>
-                        <div class="video-meta">
-                            <span>${formattedDate}</span>
-                        </div>
-                        <div class="video-stats">
-                            <span><i class="fas fa-eye"></i> ${video.views} views</span>
-                            <span><i class="fas fa-thumbs-up"></i> ${video.likes}</span>
-                        </div>
-                        <div class="channel-info">
-                            <img src="https://picsum.photos/seed/${video.channelId}/100/100.jpg" alt="${video.channel}" class="channel-avatar">
-                            <span class="channel-name">${video.channel}</span>
-                        </div>
-                    </div>
-                `;
-                
-                videoGrid.appendChild(videoCard);
-                
-                // Add hover event for video preview
-                const videoPreview = videoCard.querySelector('.video-preview');
-                videoCard.addEventListener('mouseenter', () => {
-                    videoPreview.play();
-                });
-                
-                videoCard.addEventListener('mouseleave', () => {
-                    videoPreview.pause();
-                    videoPreview.currentTime = 0;
-                });
-                
-                // Add click event to play button
-                const playBtn = videoCard.querySelector('.play-btn');
-                playBtn.addEventListener('click', () => {
-                    openVideoModal(video);
-                });
+            if (!healthStatus || !healthDetails || !healthText) {
+                console.warn('Health indicator elements not found');
+                return;
+            }
+            
+            // Toggle health details on click
+            healthStatus.addEventListener('click', () => {
+                healthDetails.style.display = healthDetails.style.display === 'none' ? 'block' : 'none';
             });
             
-            loadingIndicator.style.display = 'none';
-            videoGrid.style.display = 'grid';
+            // Hide details when clicking outside
+            document.addEventListener('click', (event) => {
+                if (!event.target.closest('.health-indicator')) {
+                    healthDetails.style.display = 'none';
+                }
+            });
+            
+            // Update health status periodically
+            setInterval(updateHealthDisplay, 5000);
+            
+            // Initial update
+            setTimeout(updateHealthDisplay, 2000);
+        }
+        
+        // Update health display
+        function updateHealthDisplay() {
+            if (!selfHealingFramework) return;
+            
+            try {
+                const systemHealth = selfHealingFramework.getSystemHealth();
+                const healthStatus = document.getElementById('healthStatus');
+                const healthText = document.getElementById('healthText');
+                
+                if (!healthStatus || !healthText || !systemHealth) return;
+                
+                // Update main status
+                healthText.textContent = systemHealth.overall.toUpperCase();
+                healthStatus.className = `health-status ${systemHealth.overall}`;
+                
+                // Update component details
+                const components = ['api', 'config', 'ui', 'cache'];
+                components.forEach(component => {
+                    const element = document.getElementById(`${component}Health`);
+                    if (element && systemHealth.components && systemHealth.components[component]) {
+                        const status = systemHealth.components[component].status;
+                        element.textContent = status.toUpperCase();
+                        element.className = status;
+                    }
+                });
+            } catch (error) {
+                console.error('Error updating health display:', error);
+            }
+        }
+        
+        // Display videos in the grid with self-healing enhancements
+        function displayVideos(videos) {
+            try {
+                videoGrid.innerHTML = '';
+                
+                videos.forEach(video => {
+                    const videoCard = document.createElement('div');
+                    videoCard.className = 'video-card';
+                    
+                    // Format date
+                    const publishDate = new Date(video.publishedAt);
+                    const formattedDate = publishDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: 'numeric'
+                    });
+                    
+                    videoCard.innerHTML = `
+                        <div class="thumbnail-container">
+                            <img src="${video.thumbnail}" alt="${video.title}" class="thumbnail">
+                            <video class="video-preview" muted loop>
+                                <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+                                Your browser does not support the video tag.
+                            </video>
+                            <div class="play-btn" data-video-id="${video.id}">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        </div>
+                        <div class="video-info">
+                            <h3 class="video-title">${video.title}</h3>
+                            <div class="video-meta">
+                                <span>${formattedDate}</span>
+                            </div>
+                            <div class="video-stats">
+                                <span><i class="fas fa-eye"></i> ${video.views} views</span>
+                                <span><i class="fas fa-thumbs-up"></i> ${video.likes}</span>
+                            </div>
+                            <div class="channel-info">
+                                <img src="https://picsum.photos/seed/${video.channelId}/100/100.jpg" alt="${video.channel}" class="channel-avatar">
+                                <span class="channel-name">${video.channel}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    videoGrid.appendChild(videoCard);
+                    
+                    // Add hover event for video preview
+                    const videoPreview = videoCard.querySelector('.video-preview');
+                    videoCard.addEventListener('mouseenter', () => {
+                        try {
+                            videoPreview.play();
+                        } catch (error) {
+                            console.warn('Video preview failed:', error);
+                            if (selfHealingFramework) {
+                                selfHealingFramework.reportError('warn', 'Video preview failed', error);
+                            }
+                        }
+                    });
+                    
+                    videoCard.addEventListener('mouseleave', () => {
+                        try {
+                            videoPreview.pause();
+                            videoPreview.currentTime = 0;
+                        } catch (error) {
+                            // Ignore pause errors
+                        }
+                    });
+                    
+                    // Add click event to play button
+                    const playBtn = videoCard.querySelector('.play-btn');
+                    playBtn.addEventListener('click', () => {
+                        openVideoModal(video);
+                    });
+                });
+                
+                loadingIndicator.style.display = 'none';
+                videoGrid.style.display = 'grid';
+                
+                // Setup enhanced error handling for images and videos if self-healing is available
+                if (selfHealingFramework) {
+                    setTimeout(() => {
+                        // Setup error handlers for images
+                        const images = videoGrid.querySelectorAll('img');
+                        images.forEach(img => {
+                            if (!img.hasAttribute('data-error-handler')) {
+                                img.addEventListener('error', () => {
+                                    console.log('[Self-Healing] Image failed to load, attempting recovery:', img.src);
+                                    selfHealingFramework.uiRecovery.trackErrorElement(img);
+                                });
+                                img.setAttribute('data-error-handler', 'true');
+                            }
+                        });
+                        
+                        // Setup error handlers for videos
+                        const videos = videoGrid.querySelectorAll('video');
+                        videos.forEach(video => {
+                            if (!video.hasAttribute('data-error-handler')) {
+                                video.addEventListener('error', () => {
+                                    console.log('[Self-Healing] Video failed to load, attempting recovery');
+                                    selfHealingFramework.uiRecovery.trackErrorElement(video);
+                                });
+                                video.setAttribute('data-error-handler', 'true');
+                            }
+                        });
+                    }, 500);
+                }
+                
+            } catch (error) {
+                console.error('Error displaying videos:', error);
+                if (selfHealingFramework) {
+                    selfHealingFramework.reportError('error', 'Error displaying videos', error);
+                }
+                
+                // Fallback: show error message
+                videoGrid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #ff4444;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 3rem; margin-bottom: 20px;"></i>
+                        <h3>Unable to display videos</h3>
+                        <p>An error occurred while rendering the video grid. Please try refreshing the page.</p>
+                    </div>
+                `;
+                loadingIndicator.style.display = 'none';
+                videoGrid.style.display = 'grid';
+            }
         }
         
         // Open video modal and embed player
@@ -897,20 +1255,57 @@
             document.body.style.overflow = 'auto';
         }
         
-        // Show about information
+        // Show about information with self-healing status
         function showAbout() {
+            let selfHealingInfo = '';
+            let systemHealth = '';
+            
+            if (selfHealingFramework) {
+                const health = selfHealingFramework.getSystemHealth();
+                const errorCount = selfHealingFramework.errorReporter ? selfHealingFramework.errorReporter.getLogs('error').length : 0;
+                
+                systemHealth = `
+SELF-HEALING STATUS: ${health.overall.toUpperCase()}
+• API Health: ${health.components.api?.status.toUpperCase() || 'UNKNOWN'}
+• Config Health: ${health.components.config?.status.toUpperCase() || 'UNKNOWN'}
+• UI Health: ${health.components.ui?.status.toUpperCase() || 'UNKNOWN'}
+• Cache Health: ${health.components.cache?.status.toUpperCase() || 'UNKNOWN'}
+• Error Count: ${errorCount}
+• Last Check: ${health.lastCheck ? new Date(health.lastCheck).toLocaleTimeString() : 'PENDING'}
+
+SELF-HEALING FEATURES:
+• Automatic API retry with exponential backoff
+• Circuit breaker pattern for failed endpoints
+• Configuration auto-recovery and validation
+• UI error recovery and graceful degradation
+• Intelligent caching with auto-cleanup
+• Real-time health monitoring
+• Comprehensive error logging
+
+`;
+            } else {
+                selfHealingInfo = `
+SELF-HEALING: NOT AVAILABLE
+(Framework failed to initialize)
+
+`;
+            }
+            
             alert(`[ SYSTEM INFORMATION ]
 
-AI VIDEO EXPLORER v2.0
-NEURAL PROCESSOR: QUANTUM
+AI VIDEO EXPLORER v2.1
+NEURAL PROCESSOR: QUANTUM + SELF-HEALING
 STATUS: OPERATIONAL
 
-This application displays the top 10 most viewed Artificial Intelligence videos on YouTube from the past week.
+${systemHealth}${selfHealingInfo}This application displays the top 10 most viewed Artificial Intelligence videos on YouTube from the past week.
 
-FEATURES:
+ENHANCED FEATURES:
 • Videos autoplay on hover for preview
 • Matrix-style neural interface
 • Real-time data streaming
+• Self-healing capabilities
+• Automatic error recovery
+• Performance monitoring
 
 To use with real YouTube data, replace "YOUR_YOUTUBE_API_KEY" with your actual YouTube Data API key.
 

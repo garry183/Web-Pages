@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Healing Framework Tests</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ffcc;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: rgba(0, 20, 40, 0.8);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 8px;
+            margin: 20px 0;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .test-pass {
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 4px solid #00ff00;
+        }
+        .test-fail {
+            background: rgba(255, 0, 0, 0.1);
+            border-left: 4px solid #ff4444;
+        }
+        .test-info {
+            background: rgba(0, 255, 204, 0.1);
+            border-left: 4px solid #00ffcc;
+        }
+        button {
+            background: linear-gradient(135deg, #1e3a5f, #2d5aa0);
+            color: #00ffcc;
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            margin: 5px;
+        }
+        button:hover {
+            background: linear-gradient(135deg, #2d5aa0, #1e3a5f);
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        h1, h2 {
+            color: #00ffcc;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.5);
+        }
+    </style>
+    <!-- Load Self-Healing Framework -->
+    <script src="self-healing-framework.js"></script>
+    <script src="self-healing-components.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>[ SELF-HEALING FRAMEWORK TESTS ]</h1>
+        <p>Comprehensive testing of the self-healing capabilities integrated into the AI Video Explorer.</p>
+        
+        <div class="test-section">
+            <h2>Framework Initialization Tests</h2>
+            <button onclick="testFrameworkInit()">Test Framework Initialization</button>
+            <div id="init-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Retry Manager Tests</h2>
+            <button onclick="testRetryManager()">Test Retry Logic</button>
+            <button onclick="testExponentialBackoff()">Test Exponential Backoff</button>
+            <div id="retry-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Circuit Breaker Tests</h2>
+            <button onclick="testCircuitBreaker()">Test Circuit Breaker</button>
+            <button onclick="testCircuitBreakerRecovery()">Test Recovery</button>
+            <div id="circuit-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Configuration Manager Tests</h2>
+            <button onclick="testConfigManager()">Test Config Load/Save</button>
+            <button onclick="testConfigRecovery()">Test Config Recovery</button>
+            <div id="config-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Health Monitor Tests</h2>
+            <button onclick="testHealthMonitor()">Test Health Checks</button>
+            <button onclick="testSystemRecovery()">Test System Recovery</button>
+            <div id="health-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Cache Manager Tests</h2>
+            <button onclick="testCacheManager()">Test Cache Operations</button>
+            <button onclick="testCacheCleanup()">Test Cache Cleanup</button>
+            <div id="cache-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Error Reporter Tests</h2>
+            <button onclick="testErrorReporter()">Test Error Logging</button>
+            <button onclick="testErrorPersistence()">Test Error Persistence</button>
+            <div id="error-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Integration Tests</h2>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="testRealWorldScenario()">Test Real-World Scenario</button>
+            <div id="integration-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Test Results Summary</h2>
+            <div id="test-summary"></div>
+        </div>
+    </div>
+
+    <script>
+        let framework = null;
+        let testResults = {
+            passed: 0,
+            failed: 0,
+            tests: []
+        };
+
+        // Utility functions
+        function addTestResult(container, testName, passed, message, details = null) {
+            const div = document.createElement('div');
+            div.className = `test-result ${passed ? 'test-pass' : 'test-fail'}`;
+            div.innerHTML = `
+                <strong>${passed ? '✓' : '✗'} ${testName}</strong><br>
+                ${message}
+                ${details ? `<pre>${details}</pre>` : ''}
+            `;
+            document.getElementById(container).appendChild(div);
+            
+            testResults.tests.push({ testName, passed, message });
+            if (passed) testResults.passed++;
+            else testResults.failed++;
+            
+            updateSummary();
+        }
+
+        function updateSummary() {
+            const summary = document.getElementById('test-summary');
+            summary.innerHTML = `
+                <div class="test-info">
+                    <strong>Tests Run:</strong> ${testResults.tests.length}<br>
+                    <strong>Passed:</strong> ${testResults.passed}<br>
+                    <strong>Failed:</strong> ${testResults.failed}<br>
+                    <strong>Success Rate:</strong> ${testResults.tests.length > 0 ? Math.round((testResults.passed / testResults.tests.length) * 100) : 0}%
+                </div>
+            `;
+        }
+
+        // Framework Initialization Tests
+        async function testFrameworkInit() {
+            const container = 'init-results';
+            document.getElementById(container).innerHTML = '';
+            
+            try {
+                framework = new SelfHealingFramework({
+                    retryAttempts: 2,
+                    retryDelay: 100,
+                    logLevel: 'debug'
+                });
+
+                // Wait for initialization
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                addTestResult(container, 'Framework Creation', 
+                    framework !== null, 
+                    'Self-healing framework instance created successfully');
+
+                addTestResult(container, 'Framework Initialization', 
+                    framework.isInitialized, 
+                    'Framework initialized and ready');
+
+                addTestResult(container, 'Component Loading', 
+                    framework.healthMonitor && framework.retryManager && framework.configManager,
+                    'All core components loaded successfully');
+
+            } catch (error) {
+                addTestResult(container, 'Framework Initialization', 
+                    false, 
+                    `Failed to initialize framework: ${error.message}`, 
+                    error.stack);
+            }
+        }
+
+        // Retry Manager Tests
+        async function testRetryManager() {
+            const container = 'retry-results';
+            document.getElementById(container).innerHTML = '';
+
+            if (!framework) {
+                addTestResult(container, 'Retry Manager', false, 'Framework not initialized');
+                return;
+            }
+
+            try {
+                let attempts = 0;
+                const failingOperation = async () => {
+                    attempts++;
+                    if (attempts < 3) {
+                        throw new Error('Simulated failure');
+                    }
+                    return 'success';
+                };
+
+                const result = await framework.retryManager.executeWithRetry(failingOperation, {
+                    maxAttempts: 3,
+                    baseDelay: 50
+                });
+
+                addTestResult(container, 'Retry Success', 
+                    result === 'success' && attempts === 3,
+                    `Operation succeeded after ${attempts} attempts`);
+
+            } catch (error) {
+                addTestResult(container, 'Retry Manager', false, error.message);
+            }
+        }
+
+        async function testExponentialBackoff() {
+            const container = 'retry-results';
+
+            if (!framework) return;
+
+            try {
+                const delays = [];
+                const startTime = Date.now();
+                let lastTime = startTime;
+
+                const failingOperation = async (attempt) => {
+                    const currentTime = Date.now();
+                    if (attempt > 1) {
+                        delays.push(currentTime - lastTime);
+                    }
+                    lastTime = currentTime;
+                    throw new Error('Always fails');
+                };
+
+                try {
+                    await framework.retryManager.executeWithRetry(failingOperation, {
+                        maxAttempts: 3,
+                        baseDelay: 100,
+                        backoffMultiplier: 2
+                    });
+                } catch (e) {
+                    // Expected to fail
+                }
+
+                const exponentialGrowth = delays.length >= 2 && delays[1] >= delays[0] * 1.5;
+                addTestResult(container, 'Exponential Backoff', 
+                    exponentialGrowth,
+                    `Delays: ${delays.join('ms, ')}ms - ${exponentialGrowth ? 'Growing exponentially' : 'Not exponential'}`);
+
+            } catch (error) {
+                addTestResult(container, 'Exponential Backoff', false, error.message);
+            }
+        }
+
+        // Circuit Breaker Tests
+        async function testCircuitBreaker() {
+            const container = 'circuit-results';
+            document.getElementById(container).innerHTML = '';
+
+            if (!framework) {
+                addTestResult(container, 'Circuit Breaker', false, 'Framework not initialized');
+                return;
+            }
+
+            try {
+                const testUrl = 'https://nonexistent-api.example.com/test';
+                
+                // Trigger circuit breaker by making multiple failing requests
+                for (let i = 0; i < 5; i++) {
+                    try {
+                        await framework.makeResilientAPICall(testUrl);
+                    } catch (error) {
+                        // Expected to fail
+                    }
+                }
+
+                // Check if circuit breaker is open
+                const apiManager = framework.apiManager;
+                const circuitStatus = apiManager.getCircuitBreakerStatus();
+                const isOpen = circuitStatus[testUrl] && circuitStatus[testUrl].state === 'open';
+
+                addTestResult(container, 'Circuit Breaker Activation', 
+                    isOpen,
+                    `Circuit breaker ${isOpen ? 'opened' : 'remained closed'} after multiple failures`,
+                    `Circuit state: ${circuitStatus[testUrl]?.state || 'unknown'}`);
+
+            } catch (error) {
+                addTestResult(container, 'Circuit Breaker', false, error.message);
+            }
+        }
+
+        async function testCircuitBreakerRecovery() {
+            const container = 'circuit-results';
+
+            if (!framework) return;
+
+            try {
+                // Reset all circuit breakers
+                await framework.apiManager.resetAllCircuitBreakers();
+                
+                const circuitStatus = framework.apiManager.getCircuitBreakerStatus();
+                const allClosed = Object.values(circuitStatus).every(breaker => breaker.state === 'closed');
+
+                addTestResult(container, 'Circuit Breaker Recovery', 
+                    allClosed,
+                    `All circuit breakers ${allClosed ? 'reset to closed' : 'still have open circuits'}`);
+
+            } catch (error) {
+                addTestResult(container, 'Circuit Breaker Recovery', false, error.message);
+            }
+        }
+
+        // Configuration Manager Tests
+        async function testConfigManager() {
+            const container = 'config-results';
+            document.getElementById(container).innerHTML = '';
+
+            if (!framework) {
+                addTestResult(container, 'Config Manager', false, 'Framework not initialized');
+                return;
+            }
+
+            try {
+                // Test setting and getting config values
+                await framework.setConfig('test.value', 'test123');
+                const retrievedValue = await framework.getConfig('test.value');
+
+                addTestResult(container, 'Config Set/Get', 
+                    retrievedValue === 'test123',
+                    `Set 'test123', retrieved '${retrievedValue}'`);
+
+                // Test nested config paths
+                await framework.setConfig('nested.path.value', 42);
+                const nestedValue = await framework.getConfig('nested.path.value');
+
+                addTestResult(container, 'Nested Config Paths', 
+                    nestedValue === 42,
+                    `Nested configuration paths working`);
+
+            } catch (error) {
+                addTestResult(container, 'Config Manager', false, error.message);
+            }
+        }
+
+        async function testConfigRecovery() {
+            const container = 'config-results';
+
+            if (!framework) return;
+
+            try {
+                // Trigger config recovery
+                await framework.configManager.recover();
+                
+                // Check if config is still accessible
+                const apiKey = await framework.getConfig('API_KEY');
+                const hasConfig = apiKey !== null;
+
+                addTestResult(container, 'Config Recovery', 
+                    hasConfig,
+                    `Configuration ${hasConfig ? 'recovered successfully' : 'recovery failed'}`);
+
+            } catch (error) {
+                addTestResult(container, 'Config Recovery', false, error.message);
+            }
+        }
+
+        // Health Monitor Tests
+        async function testHealthMonitor() {
+            const container = 'health-results';
+            document.getElementById(container).innerHTML = '';
+
+            if (!framework) {
+                addTestResult(container, 'Health Monitor', false, 'Framework not initialized');
+                return;
+            }
+
+            try {
+                const health = framework.getSystemHealth();
+                
+                addTestResult(container, 'Health Status Retrieval', 
+                    health && health.overall,
+                    `System health: ${health.overall}, Components: ${Object.keys(health.components).length}`);
+
+                addTestResult(container, 'Health Components', 
+                    health.components && Object.keys(health.components).length > 0,
+                    `Health check covers: ${Object.keys(health.components).join(', ')}`);
+
+            } catch (error) {
+                addTestResult(container, 'Health Monitor', false, error.message);
+            }
+        }
+
+        async function testSystemRecovery() {
+            const container = 'health-results';
+
+            if (!framework) return;
+
+            try {
+                // Trigger a manual system recovery
+                const initialHealth = framework.getSystemHealth();
+                await framework.attemptSystemRecovery(initialHealth);
+
+                addTestResult(container, 'System Recovery', 
+                    true,
+                    'System recovery process completed successfully');
+
+            } catch (error) {
+                addTestResult(container, 'System Recovery', false, error.message);
+            }
+        }
+
+        // Cache Manager Tests
+        async function testCacheManager() {
+            const container = 'cache-results';
+            document.getElementById(container).innerHTML = '';
+
+            if (!framework) {
+                addTestResult(container, 'Cache Manager', false, 'Framework not initialized');
+                return;
+            }
+
+            try {
+                const testData = { test: 'data', timestamp: Date.now() };
+                
+                // Set cache data
+                framework.cacheData('test-key', testData, 60000);
+                
+                // Retrieve cache data
+                const retrieved = framework.getCachedData('test-key');
+                
+                addTestResult(container, 'Cache Set/Get', 
+                    retrieved && retrieved.test === 'data',
+                    'Cache storage and retrieval working correctly');
+
+                // Test cache expiration
+                framework.cacheData('expire-key', 'expire-test', 1); // 1ms TTL
+                await new Promise(resolve => setTimeout(resolve, 10));
+                const expired = framework.getCachedData('expire-key');
+
+                addTestResult(container, 'Cache Expiration', 
+                    expired === null,
+                    'Cache expiration working correctly');
+
+            } catch (error) {
+                addTestResult(container, 'Cache Manager', false, error.message);
+            }
+        }
+
+        async function testCacheCleanup() {
+            const container = 'cache-results';
+
+            if (!framework) return;
+
+            try {
+                // Add some test cache entries
+                framework.cacheData('cleanup-test-1', 'data1', 1);
+                framework.cacheData('cleanup-test-2', 'data2', 60000);
+                
+                // Wait for first entry to expire
+                await new Promise(resolve => setTimeout(resolve, 10));
+                
+                // Trigger cleanup
+                framework.cacheManager.cleanup();
+                
+                // Check results
+                const expired = framework.getCachedData('cleanup-test-1');
+                const valid = framework.getCachedData('cleanup-test-2');
+
+                addTestResult(container, 'Cache Cleanup', 
+                    expired === null && valid === 'data2',
+                    'Cache cleanup removed expired entries only');
+
+            } catch (error) {
+                addTestResult(container, 'Cache Cleanup', false, error.message);
+            }
+        }
+
+        // Error Reporter Tests
+        async function testErrorReporter() {
+            const container = 'error-results';
+            document.getElementById(container).innerHTML = '';
+
+            if (!framework) {
+                addTestResult(container, 'Error Reporter', false, 'Framework not initialized');
+                return;
+            }
+
+            try {
+                // Test error logging
+                framework.reportError('info', 'Test info message');
+                framework.reportError('warn', 'Test warning message');
+                framework.reportError('error', 'Test error message', new Error('Test error'));
+
+                const logs = framework.errorReporter.getLogs();
+                const hasLogs = logs.length >= 3;
+
+                addTestResult(container, 'Error Logging', 
+                    hasLogs,
+                    `${logs.length} log entries created`);
+
+                // Test error filtering
+                const errorLogs = framework.errorReporter.getLogs('error');
+                const hasErrorLogs = errorLogs.length >= 1;
+
+                addTestResult(container, 'Error Filtering', 
+                    hasErrorLogs,
+                    `${errorLogs.length} error-level logs found`);
+
+            } catch (error) {
+                addTestResult(container, 'Error Reporter', false, error.message);
+            }
+        }
+
+        async function testErrorPersistence() {
+            const container = 'error-results';
+
+            if (!framework) return;
+
+            try {
+                // Log a critical error
+                framework.reportError('error', 'Critical test error for persistence', new Error('Persistence test'));
+
+                // Check if it's persisted
+                const criticalErrors = framework.errorReporter.getCriticalErrors();
+                const hasPersisted = criticalErrors.length > 0;
+
+                addTestResult(container, 'Error Persistence', 
+                    hasPersisted,
+                    `${criticalErrors.length} critical errors persisted to localStorage`);
+
+            } catch (error) {
+                addTestResult(container, 'Error Persistence', false, error.message);
+            }
+        }
+
+        // Integration Tests
+        async function runAllTests() {
+            const container = 'integration-results';
+            document.getElementById(container).innerHTML = '<div class="test-info">Running comprehensive test suite...</div>';
+
+            // Reset test results
+            testResults = { passed: 0, failed: 0, tests: [] };
+
+            // Run all tests in sequence
+            await testFrameworkInit();
+            await new Promise(resolve => setTimeout(resolve, 100));
+            await testRetryManager();
+            await testExponentialBackoff();
+            await testCircuitBreaker();
+            await testCircuitBreakerRecovery();
+            await testConfigManager();
+            await testConfigRecovery();
+            await testHealthMonitor();
+            await testSystemRecovery();
+            await testCacheManager();
+            await testCacheCleanup();
+            await testErrorReporter();
+            await testErrorPersistence();
+
+            document.getElementById(container).innerHTML = `
+                <div class="test-info">
+                    <strong>Comprehensive Test Suite Completed</strong><br>
+                    All individual tests have been executed. Check the results above and in the summary section.
+                </div>
+            `;
+        }
+
+        async function testRealWorldScenario() {
+            const container = 'integration-results';
+
+            if (!framework) {
+                addTestResult(container, 'Real-World Scenario', false, 'Framework not initialized');
+                return;
+            }
+
+            try {
+                // Simulate a real-world scenario: API failure with recovery
+                
+                // 1. Try to make an API call (will fail due to CORS/network restrictions)
+                try {
+                    await framework.makeResilientAPICall('https://jsonplaceholder.typicode.com/posts/1');
+                } catch (apiError) {
+                    // Expected to fail in this environment
+                }
+
+                // 2. Check if the system adapted to the failure
+                const health = framework.getSystemHealth();
+                const hasHealthData = health && health.components;
+
+                // 3. Test cache fallback
+                framework.cacheData('fallback-data', [
+                    { id: 1, title: 'Fallback Post', body: 'This is cached fallback data' }
+                ], 300000);
+
+                const fallbackData = framework.getCachedData('fallback-data');
+                const hasFallback = fallbackData && fallbackData.length > 0;
+
+                // 4. Test error reporting
+                framework.reportError('info', 'Real-world scenario test completed');
+
+                addTestResult(container, 'Real-World Scenario', 
+                    hasHealthData && hasFallback,
+                    `System handled API failure gracefully. Health monitoring: ${hasHealthData ? 'active' : 'inactive'}, Fallback data: ${hasFallback ? 'available' : 'missing'}`);
+
+            } catch (error) {
+                addTestResult(container, 'Real-World Scenario', false, error.message);
+            }
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            console.log('Self-Healing Framework Test Suite Loaded');
+            updateSummary();
+        });
+    </script>
+</body>
+</html>

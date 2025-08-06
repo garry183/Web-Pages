@@ -8,5 +8,16 @@
     "ui_settings": {
         "matrix_effect_speed": 35,
         "autoplay_preview": true
+    },
+    "self_healing": {
+        "enabled": true,
+        "retry_attempts": 3,
+        "retry_delay": 1000,
+        "circuit_breaker_threshold": 5,
+        "circuit_breaker_timeout": 30000,
+        "health_check_interval": 60000,
+        "cache_max_age": 300000,
+        "log_level": "info",
+        "auto_recovery": true
     }
 }
