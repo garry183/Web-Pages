@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Self-Healing Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ffcc;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: rgba(0, 20, 40, 0.5);
+            border: 1px solid #00ffcc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .pass { background: rgba(0, 255, 0, 0.2); }
+        .fail { background: rgba(255, 0, 0, 0.2); }
+        .info { background: rgba(0, 0, 255, 0.2); }
+        button {
+            background: linear-gradient(135deg, rgba(0, 30, 60, 0.8), rgba(0, 20, 40, 0.8));
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-family: inherit;
+        }
+        button:hover {
+            background: linear-gradient(135deg, rgba(0, 50, 100, 0.9), rgba(0, 30, 60, 0.9));
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .test-image {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border: 2px solid #00ffcc;
+            border-radius: 8px;
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        h1, h2 { color: #00ffcc; text-align: center; }
+        .metric {
+            display: inline-block;
+            margin: 5px 10px;
+            padding: 5px 10px;
+            background: rgba(0, 255, 204, 0.1);
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🖼️ IMAGE SELF-HEALING SYSTEM TEST SUITE</h1>
+        
+        <div class="test-section">
+            <h2>📊 Image Healing Metrics</h2>
+            <div id="metrics-display">Loading metrics...</div>
+            <button onclick="updateMetrics()">Update Metrics</button>
+            <button onclick="resetImageCache()">Reset Cache</button>
+        </div>
+        
+        <div class="test-section">
+            <h2>🧪 Image Loading Tests</h2>
+            <button onclick="testValidImages()">Test Valid Images</button>
+            <button onclick="testBrokenImages()">Test Broken Images</button>
+            <button onclick="testMixedImages()">Test Mixed Images</button>
+            <button onclick="clearTestImages()">Clear Test Images</button>
+            <div id="image-test-results"></div>
+            <div id="test-images" class="image-grid"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔄 Recovery Tests</h2>
+            <button onclick="testCacheRecovery()">Test Cache Recovery</button>
+            <button onclick="testFailedUrlRecovery()">Test Failed URL Recovery</button>
+            <button onclick="simulateNetworkRestore()">Simulate Network Restore</button>
+            <div id="recovery-test-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📈 Performance Tests</h2>
+            <button onclick="testLazyLoading()">Test Lazy Loading</button>
+            <button onclick="testCachePerformance()">Test Cache Performance</button>
+            <button onclick="stressTestImages()">Stress Test (50 Images)</button>
+            <div id="performance-test-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📊 Live Diagnostics</h2>
+            <button onclick="showDiagnostics()">Show Diagnostics</button>
+            <button onclick="toggleAutoUpdate()">Toggle Auto-Update</button>
+            <div id="diagnostics-display"></div>
+        </div>
+    </div>
+
+    <!-- Load Image Self-Healing Service -->
+    <script src="image-healing.js"></script>
+
+    <script>
+        // Initialize Image Self-Healing Service for testing
+        let imageHealing;
+        let autoUpdateInterval;
+        
+        function initializeTests() {
+            try {
+                imageHealing = new ImageSelfHealingService({
+                    maxRetries: 2,
+                    retryDelay: 500,
+                    healthCheckInterval: 30000, // 30 seconds for testing
+                    cacheExpiryTime: 5 * 60 * 1000 // 5 minutes for testing
+                });
+                
+                updateMetrics();
+                logResult('metrics-display', 'Image Self-Healing Service initialized successfully', 'pass');
+            } catch (error) {
+                logResult('metrics-display', `Initialization failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function updateMetrics() {
+            if (!imageHealing) return;
+            
+            const diagnostics = imageHealing.getDiagnostics();
+            const metricsHtml = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="metric">Success Rate: <strong>${diagnostics.successRate}</strong></div>
+                    <div class="metric">Fallback Rate: <strong>${diagnostics.fallbackRate}</strong></div>
+                    <div class="metric">Cache Hit Rate: <strong>${diagnostics.cacheHitRate}</strong></div>
+                    <div class="metric">Cache Size: <strong>${diagnostics.cacheSize}</strong></div>
+                    <div class="metric">Failed URLs: <strong>${diagnostics.failedUrls}</strong></div>
+                    <div class="metric">Total Requests: <strong>${diagnostics.metrics.totalRequests}</strong></div>
+                    <div class="metric">Successful Loads: <strong>${diagnostics.metrics.successfulLoads}</strong></div>
+                    <div class="metric">Fallbacks Used: <strong>${diagnostics.metrics.fallbacksUsed}</strong></div>
+                    <div class="metric">Cache Hits: <strong>${diagnostics.metrics.cacheHits}</strong></div>
+                    <div class="metric">Retries: <strong>${diagnostics.metrics.retries}</strong></div>
+                </div>
+                <div style="margin-top: 15px; font-size: 0.9rem; color: #888;">
+                    Last Updated: ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+            document.getElementById('metrics-display').innerHTML = metricsHtml;
+        }
+        
+        function resetImageCache() {
+            if (!imageHealing) return;
+            
+            imageHealing.cache.clear();
+            imageHealing.resetFailedUrls();
+            imageHealing.metrics = {
+                totalRequests: 0,
+                successfulLoads: 0,
+                fallbacksUsed: 0,
+                cacheHits: 0,
+                retries: 0
+            };
+            
+            updateMetrics();
+            logResult('metrics-display', 'Image cache and metrics reset', 'info');
+        }
+        
+        // Image loading tests
+        function testValidImages() {
+            const validUrls = [
+                'https://via.placeholder.com/300x200/00ffcc/000?text=Valid+Image+1',
+                'https://via.placeholder.com/300x200/0099aa/fff?text=Valid+Image+2',
+                'https://via.placeholder.com/300x200/006677/fff?text=Valid+Image+3',
+                'https://via.placeholder.com/300x200/003344/fff?text=Valid+Image+4'
+            ];
+            
+            logResult('image-test-results', 'Testing valid images...', 'info');
+            createTestImages(validUrls, 'Valid image test');
+        }
+        
+        function testBrokenImages() {
+            const brokenUrls = [
+                'https://nonexistent-domain-12345.com/image1.jpg',
+                'https://httpstat.us/404/image2.jpg',
+                'https://httpstat.us/500/image3.jpg',
+                'https://invalid-url-for-testing.xyz/image4.png'
+            ];
+            
+            logResult('image-test-results', 'Testing broken images (should use fallbacks)...', 'info');
+            createTestImages(brokenUrls, 'Broken image test');
+        }
+        
+        function testMixedImages() {
+            const mixedUrls = [
+                'https://via.placeholder.com/300x200/00ffcc/000?text=Good+1',
+                'https://nonexistent-domain.com/broken1.jpg',
+                'https://via.placeholder.com/300x200/0099aa/fff?text=Good+2',
+                'https://httpstat.us/404/broken2.jpg',
+                'https://via.placeholder.com/300x200/006677/fff?text=Good+3',
+                'https://invalid-url.xyz/broken3.png'
+            ];
+            
+            logResult('image-test-results', 'Testing mixed valid/broken images...', 'info');
+            createTestImages(mixedUrls, 'Mixed image test');
+        }
+        
+        function createTestImages(urls, testName) {
+            const container = document.getElementById('test-images');
+            
+            urls.forEach((url, index) => {
+                const img = document.createElement('img');
+                img.className = 'test-image';
+                img.dataset.src = url;
+                img.dataset.imageType = index % 2 === 0 ? 'thumbnail' : 'avatar';
+                img.alt = `${testName} ${index + 1}`;
+                img.title = url;
+                
+                // Use loading placeholder
+                img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjMGEwYTBhIi8+Cjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjMDBmZmNjIiBmb250LWZhbWlseT0iQ291cmllciBOZXciIGZvbnQtc2l6ZT0iMTYiPkxvYWRpbmcuLi48L3RleHQ+Cjwvc3ZnPgo=';
+                
+                container.appendChild(img);
+            });
+            
+            // Trigger healing after a short delay
+            setTimeout(() => {
+                imageHealing.healAllImages();
+                updateMetrics();
+            }, 100);
+            
+            // Check results after healing completes
+            setTimeout(() => {
+                const totalImages = urls.length;
+                const loadedImages = container.querySelectorAll('img:not([data-src])').length;
+                logResult('image-test-results', `${testName}: ${loadedImages}/${totalImages} images processed`, loadedImages > 0 ? 'pass' : 'fail');
+            }, 3000);
+        }
+        
+        function clearTestImages() {
+            document.getElementById('test-images').innerHTML = '';
+            logResult('image-test-results', 'Test images cleared', 'info');
+        }
+        
+        // Recovery tests
+        function testCacheRecovery() {
+            if (!imageHealing) return;
+            
+            // Add some test entries to cache
+            imageHealing.setCache('test-url-1', 'cached-result-1');
+            imageHealing.setCache('test-url-2', 'cached-result-2');
+            
+            // Save to localStorage
+            imageHealing.saveCacheToStorage();
+            
+            // Clear memory cache
+            imageHealing.cache.clear();
+            
+            // Load from storage
+            imageHealing.loadCacheFromStorage();
+            
+            const recovered = imageHealing.cache.size;
+            logResult('recovery-test-results', `Cache recovery test: ${recovered} entries recovered`, recovered > 0 ? 'pass' : 'fail');
+            updateMetrics();
+        }
+        
+        function testFailedUrlRecovery() {
+            if (!imageHealing) return;
+            
+            // Add some failed URLs
+            imageHealing.failedUrls.add('https://test-failed-1.com/image.jpg');
+            imageHealing.failedUrls.add('https://test-failed-2.com/image.jpg');
+            
+            const failedCount = imageHealing.failedUrls.size;
+            logResult('recovery-test-results', `Added ${failedCount} URLs to failed list`, 'info');
+            
+            // Simulate health check (this would normally happen automatically)
+            setTimeout(() => {
+                imageHealing.performImageHealthCheck();
+                logResult('recovery-test-results', 'Health check performed on failed URLs', 'info');
+                updateMetrics();
+            }, 1000);
+        }
+        
+        function simulateNetworkRestore() {
+            if (!imageHealing) return;
+            
+            // Clear failed URLs to simulate network restoration
+            const originalCount = imageHealing.failedUrls.size;
+            imageHealing.resetFailedUrls();
+            
+            logResult('recovery-test-results', `Network restore simulation: ${originalCount} failed URLs cleared`, 'pass');
+            updateMetrics();
+        }
+        
+        // Performance tests
+        function testLazyLoading() {
+            logResult('performance-test-results', 'Testing lazy loading with intersection observer...', 'info');
+            
+            // Create images that are initially off-screen
+            const container = document.getElementById('test-images');
+            const urls = [
+                'https://via.placeholder.com/300x200/ff6b6b/fff?text=Lazy+1',
+                'https://via.placeholder.com/300x200/4ecdc4/fff?text=Lazy+2',
+                'https://via.placeholder.com/300x200/45b7d1/fff?text=Lazy+3'
+            ];
+            
+            urls.forEach((url, index) => {
+                const img = document.createElement('img');
+                img.className = 'test-image';
+                img.dataset.src = url;
+                img.alt = `Lazy loading test ${index + 1}`;
+                img.style.marginTop = '200px'; // Push below fold
+                
+                container.appendChild(img);
+            });
+            
+            // Trigger lazy loading
+            setTimeout(() => {
+                imageHealing.healAllImages();
+                logResult('performance-test-results', 'Lazy loading test initiated', 'pass');
+                updateMetrics();
+            }, 100);
+        }
+        
+        function testCachePerformance() {
+            if (!imageHealing) return;
+            
+            const testUrl = 'https://via.placeholder.com/300x200/95e1d3/fff?text=Cache+Test';
+            
+            // First load (should cache)
+            const startTime = performance.now();
+            imageHealing.loadImageWithHealing(testUrl, 'thumbnail').then(() => {
+                const firstLoadTime = performance.now() - startTime;
+                
+                // Second load (should use cache)
+                const cacheStartTime = performance.now();
+                imageHealing.loadImageWithHealing(testUrl, 'thumbnail').then(() => {
+                    const cacheLoadTime = performance.now() - cacheStartTime;
+                    
+                    logResult('performance-test-results', `Cache performance: First load ${firstLoadTime.toFixed(2)}ms, Cache load ${cacheLoadTime.toFixed(2)}ms`, 'pass');
+                    logResult('performance-test-results', `Cache speedup: ${(firstLoadTime / cacheLoadTime).toFixed(2)}x faster`, 'info');
+                    updateMetrics();
+                });
+            });
+        }
+        
+        function stressTestImages() {
+            logResult('performance-test-results', 'Starting stress test with 50 images...', 'info');
+            
+            const urls = [];
+            for (let i = 1; i <= 50; i++) {
+                // Mix of valid and invalid URLs
+                if (i % 5 === 0) {
+                    urls.push(`https://invalid-stress-test-${i}.com/image.jpg`);
+                } else {
+                    urls.push(`https://via.placeholder.com/200x150/random/fff?text=Stress+${i}`);
+                }
+            }
+            
+            const startTime = performance.now();
+            createTestImages(urls, 'Stress test');
+            
+            // Check completion
+            setTimeout(() => {
+                const endTime = performance.now();
+                const totalTime = endTime - startTime;
+                logResult('performance-test-results', `Stress test completed in ${totalTime.toFixed(2)}ms`, 'pass');
+                updateMetrics();
+            }, 5000);
+        }
+        
+        // Diagnostics
+        function showDiagnostics() {
+            if (!imageHealing) return;
+            
+            const diagnostics = imageHealing.getDiagnostics();
+            const html = `
+                <h3>🔍 Detailed Image Healing Diagnostics</h3>
+                <pre>${JSON.stringify(diagnostics, null, 2)}</pre>
+            `;
+            document.getElementById('diagnostics-display').innerHTML = html;
+        }
+        
+        function toggleAutoUpdate() {
+            if (autoUpdateInterval) {
+                clearInterval(autoUpdateInterval);
+                autoUpdateInterval = null;
+                logResult('diagnostics-display', '⏸️ Auto-update stopped', 'info');
+            } else {
+                autoUpdateInterval = setInterval(() => {
+                    updateMetrics();
+                    if (document.getElementById('diagnostics-display').innerHTML.includes('Detailed')) {
+                        showDiagnostics();
+                    }
+                }, 2000);
+                logResult('diagnostics-display', '▶️ Auto-update started (2s interval)', 'info');
+            }
+        }
+        
+        // Utility function to log test results
+        function logResult(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            container.appendChild(result);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', initializeTests);
+    </script>
+</body>
+</html>

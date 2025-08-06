@@ -10,6 +10,11 @@ A sleek, Matrix-themed web application that displays the top 10 most viewed Arti
 - 📱 Responsive design
 - ⚡ Real-time data fetching
 - 🔧 Configurable settings
+- **🛡️ Comprehensive Self-Healing System**
+- **🖼️ Intelligent Image Loading with Fallbacks**
+- **🌐 Offline Support via Service Worker**
+- **📊 Real-time Health Monitoring**
+- **🔄 Automatic Recovery & Retry Logic**
 
 ## Setup Instructions
 
@@ -75,6 +80,41 @@ The `config.json` file supports the following settings:
 
 If no valid API key is provided or the configuration file cannot be loaded, the application will run in demo mode using sample data.
 
+## Self-Healing Capabilities
+
+The framework includes a comprehensive self-healing system that automatically handles errors and optimizes performance:
+
+### 🛡️ Core Self-Healing Features
+- **Circuit Breaker Pattern**: Prevents cascading failures by temporarily blocking requests to failed services
+- **Exponential Backoff Retry**: Smart retry logic with increasing delays between attempts
+- **Configuration Auto-Repair**: Validates and fixes configuration issues automatically
+- **Network Recovery**: Detects network restoration and recovers services seamlessly
+- **Memory Management**: Automatic cleanup to prevent memory leaks
+- **Performance Monitoring**: Real-time performance tracking with automatic optimization
+
+### 🖼️ Enhanced Image Loading
+- **Intelligent Fallbacks**: Automatic fallback images when sources fail to load
+- **Lazy Loading**: Images load only when needed using Intersection Observer
+- **Caching System**: Smart image caching with health checks and recovery
+- **Progressive Loading**: Smooth loading experience with placeholders
+
+### 🌐 Offline Capabilities
+- **Service Worker**: Full offline functionality with intelligent caching strategies
+- **Background Sync**: Automatic retry of failed requests when connection is restored
+- **Graceful Degradation**: Application continues to function with limited connectivity
+- **Cache-First/Network-First**: Optimal caching strategies for different resource types
+
+### 📊 Health Monitoring
+- **Real-time Diagnostics**: Live system health monitoring and metrics
+- **Failure Pattern Recognition**: Tracks and learns from failure patterns
+- **Recovery Analytics**: Comprehensive reporting on self-healing effectiveness
+- **Cross-tab Synchronization**: Shared state management across browser tabs
+
+### 🧪 Testing Framework
+- **Comprehensive Test Suites**: Dedicated testing for all self-healing features
+- **Automated Validation**: Built-in tests for system health and recovery
+- **Performance Benchmarks**: Metrics tracking for optimization analysis
+
 ## Technologies Used
 
 - HTML5 & CSS3
@@ -83,6 +123,9 @@ If no valid API key is provided or the configuration file cannot be loaded, the 
 - Canvas API (for Matrix effect)
 - CSS Grid & Flexbox
 - CSS Custom Properties
+- **Service Workers** (for offline capabilities)
+- **Intersection Observer API** (for lazy loading)
+- **Local Storage API** (for state persistence)
 
 ## Browser Compatibility
 

@@ -507,8 +507,9 @@
         </footer>
     </div>
 
-    <!-- Self-Healing Service -->
+    <!-- Self-Healing Services -->
     <script src="self-healing.js"></script>
+    <script src="image-healing.js"></script>
 
     <script>
         // Initialize Self-Healing Service
@@ -520,6 +521,40 @@
             healthCheckInterval: 45000,
             cacheExpiryTime: 30 * 60 * 1000 // 30 minutes
         });
+
+        // Initialize Image Self-Healing Service
+        const imageHealing = new ImageSelfHealingService({
+            maxRetries: 3,
+            retryDelay: 500,
+            healthCheckInterval: 5 * 60 * 1000 // 5 minutes
+        });
+
+        // Register Service Worker for offline capabilities
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', async () => {
+                try {
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    console.log('✅ Service Worker registered successfully:', registration);
+                    
+                    // Listen for service worker updates
+                    registration.addEventListener('updatefound', () => {
+                        console.log('🔄 Service Worker update found');
+                        const newWorker = registration.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('🆕 New Service Worker available - consider updating');
+                                showSystemNotification('Application update available', 'info');
+                            }
+                        });
+                    });
+                    
+                } catch (error) {
+                    console.error('❌ Service Worker registration failed:', error);
+                }
+            });
+        } else {
+            console.warn('⚠️ Service Worker not supported in this browser');
+        }
 
         // Listen for self-healing events
         window.addEventListener('self-healing:network-recovered', () => {
@@ -1121,14 +1156,14 @@
                             console.warn('⚠️ Error formatting date for video:', video.id, dateError);
                         }
                         
-                        // Create safe thumbnail URL
+                        // Create safe thumbnail URL with self-healing
                         const thumbnailUrl = video.thumbnail || `https://picsum.photos/seed/${video.id}/640/360.jpg`;
                         const channelAvatarUrl = `https://picsum.photos/seed/${video.channelId || video.id}/100/100.jpg`;
                         
                         videoCard.innerHTML = `
                             <div class="thumbnail-container">
-                                <img src="${thumbnailUrl}" alt="${video.title || 'Video thumbnail'}" class="thumbnail"
-                                     onerror="this.src='https://picsum.photos/640/360.jpg?${video.id}'">
+                                <img data-src="${thumbnailUrl}" data-image-type="thumbnail" alt="${video.title || 'Video thumbnail'}" class="thumbnail"
+                                     src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQwIiBoZWlnaHQ9IjM2MCIgdmlld0JveD0iMCAwIDY0MCAzNjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI2NDAiIGhlaWdodD0iMzYwIiBmaWxsPSIjMGEwYTBhIi8+Cjx0ZXh0IHg9IjMyMCIgeT0iMTgwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjMDBmZmNjIiBmb250LWZhbWlseT0iQ291cmllciBOZXciIGZvbnQtc2l6ZT0iMjQiPkxvYWRpbmcuLi48L3RleHQ+Cjwvc3ZnPgo=">
                                 <video class="video-preview" muted loop preload="none">
                                     <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
                                     Your browser does not support the video tag.
@@ -1147,8 +1182,8 @@
                                     <span><i class="fas fa-thumbs-up"></i> ${video.likes || '0'}</span>
                                 </div>
                                 <div class="channel-info">
-                                    <img src="${channelAvatarUrl}" alt="${video.channel || 'Channel'}" class="channel-avatar"
-                                         onerror="this.src='https://picsum.photos/100/100.jpg?${video.channelId}'">
+                                    <img data-src="${channelAvatarUrl}" data-image-type="avatar" alt="${video.channel || 'Channel'}" class="channel-avatar"
+                                         src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjUwIiBmaWxsPSIjMGEwYTBhIi8+Cjx0ZXh0IHg9IjUwIiB5PSI1NSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0iIzAwZmZjYyIgZm9udC1mYW1pbHk9IkNvdXJpZXIgTmV3IiBmb250LXNpemU9IjEyIj5BSTwvdGV4dD4KPC9zdmc+Cg==">
                                     <span class="channel-name">${video.channel || 'Unknown Channel'}</span>
                                 </div>
                             </div>
@@ -1167,6 +1202,11 @@
                 
                 loadingIndicator.style.display = 'none';
                 videoGrid.style.display = 'grid';
+                
+                // Trigger image self-healing for all images
+                setTimeout(() => {
+                    imageHealing.healAllImages();
+                }, 100);
                 
                 console.log('✅ Video display completed successfully');
                 
@@ -1390,6 +1430,18 @@
                         </div>
                         
                         <div>
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🖼️ IMAGE HEALING STATUS</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.9rem;">
+                                <div>Success Rate: <span style="color: ${imageHealing.getDiagnostics().successRate !== 'N/A' ? '#00ffcc' : '#888'}">${imageHealing.getDiagnostics().successRate}</span></div>
+                                <div>Fallback Rate: <span style="color: ${parseFloat(imageHealing.getDiagnostics().fallbackRate) > 20 ? '#ffaa00' : '#00ffcc'}">${imageHealing.getDiagnostics().fallbackRate}</span></div>
+                                <div>Cache Hit Rate: <span style="color: ${imageHealing.getDiagnostics().cacheHitRate !== 'N/A' ? '#00ffcc' : '#888'}">${imageHealing.getDiagnostics().cacheHitRate}</span></div>
+                                <div>Failed URLs: <span style="color: ${imageHealing.getDiagnostics().failedUrls > 0 ? '#ffaa00' : '#00ffcc'}">${imageHealing.getDiagnostics().failedUrls}</span></div>
+                                <div>Cache Size: <span style="color: #00ffcc">${imageHealing.getDiagnostics().cacheSize}</span></div>
+                                <div>Total Requests: <span style="color: #00ffcc">${imageHealing.getDiagnostics().metrics.totalRequests}</span></div>
+                            </div>
+                        </div>
+                        
+                        <div>
                             <h3 style="color: var(--primary); margin-bottom: 10px;">📊 SYSTEM METRICS</h3>
                             <div style="font-size: 0.9rem; line-height: 1.6;">
                                 • API Calls: ${diagnostics.metrics.apiCalls}<br>
@@ -1415,7 +1467,21 @@
                                 • Data integrity validation<br>
                                 • Intelligent caching with health checks<br>
                                 • Graceful degradation on failures<br>
-                                • Real-time system health monitoring
+                                • Real-time system health monitoring<br>
+                                • <strong>Advanced image loading with fallbacks</strong><br>
+                                • <strong>Service Worker offline capabilities</strong><br>
+                                • <strong>Background sync and retry mechanisms</strong><br>
+                                • <strong>Progressive web app functionality</strong>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🌐 SERVICE WORKER STATUS</h3>
+                            <div style="font-size: 0.9rem; line-height: 1.6;">
+                                • Registration: ${navigator.serviceWorker ? (navigator.serviceWorker.controller ? 'ACTIVE' : 'REGISTERING') : 'NOT_SUPPORTED'}<br>
+                                • Offline Support: ${navigator.serviceWorker ? 'ENABLED' : 'DISABLED'}<br>
+                                • Background Sync: ${('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) ? 'SUPPORTED' : 'NOT_SUPPORTED'}<br>
+                                • Push Notifications: ${('serviceWorker' in navigator && 'PushManager' in window) ? 'SUPPORTED' : 'NOT_SUPPORTED'}
                             </div>
                         </div>
                         
