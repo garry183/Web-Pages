@@ -541,6 +541,22 @@
             loadVideos();
         });
 
+        window.addEventListener('self-healing:state-recovered', (event) => {
+            console.log('📦 Application state recovered:', event.detail);
+            showSystemNotification('Application state restored from previous session', 'info');
+        });
+
+        window.addEventListener('self-healing:circuit-breaker-opened', () => {
+            console.log('🔒 Circuit breaker opened - switching to fallback mode');
+            showSystemNotification('API protection activated - using cached data', 'warning');
+        });
+
+        window.addEventListener('self-healing:circuit-breaker-closed', () => {
+            console.log('✅ Circuit breaker closed - API services restored');
+            showSystemNotification('API services restored - live data available', 'success');
+            loadVideos();
+        });
+
         // Matrix Rain Effect
         const canvas = document.getElementById('matrix-bg');
         const ctx = canvas.getContext('2d');
@@ -1035,7 +1051,9 @@
             const indicators = [
                 { key: 'network', icon: '🌐', title: 'Network Status' },
                 { key: 'api', icon: '🔌', title: 'API Status' },
-                { key: 'performance', icon: '⚡', title: 'Performance' }
+                { key: 'performance', icon: '⚡', title: 'Performance' },
+                { key: 'circuitBreaker', icon: '🛡️', title: 'Circuit Breaker' },
+                { key: 'storage', icon: '💾', title: 'Storage Recovery' }
             ];
             
             statusContainer.innerHTML = indicators.map(indicator => {
@@ -1056,9 +1074,9 @@
         // Get color based on status
         function getStatusColor(status) {
             switch (status) {
-                case 'healthy': case 'online': return '#00ffcc';
-                case 'degraded': case 'unhealthy': return '#ffaa00';
-                case 'offline': case 'critical': return '#ff3366';
+                case 'healthy': case 'online': case 'closed': return '#00ffcc';
+                case 'degraded': case 'unhealthy': case 'half-open': return '#ffaa00';
+                case 'offline': case 'critical': case 'open': case 'unavailable': return '#ff3366';
                 default: return '#888888';
             }
         }
@@ -1355,7 +1373,7 @@
                 ">
                     <div style="text-align: center; margin-bottom: 25px;">
                         <h2 style="color: var(--primary); margin-bottom: 10px;">[ SYSTEM INFORMATION ]</h2>
-                        <div style="color: var(--gray); font-size: 0.9rem;">AI VIDEO EXPLORER v3.0 • SELF-HEALING ENABLED</div>
+                        <div style="color: var(--gray); font-size: 0.9rem;">AI VIDEO EXPLORER v3.1 • ENHANCED SELF-HEALING ENABLED</div>
                     </div>
                     
                     <div style="display: grid; gap: 20px;">
@@ -1366,6 +1384,8 @@
                                 <div>API: <span style="color: ${getStatusColor(healthStatus.status.api)}">${healthStatus.status.api?.toUpperCase()}</span></div>
                                 <div>Config: <span style="color: ${getStatusColor(healthStatus.status.config)}">${healthStatus.status.config?.toUpperCase()}</span></div>
                                 <div>Performance: <span style="color: ${getStatusColor(healthStatus.status.performance)}">${healthStatus.status.performance?.toUpperCase()}</span></div>
+                                <div>Circuit Breaker: <span style="color: ${getStatusColor(healthStatus.status.circuitBreaker)}">${healthStatus.status.circuitBreaker?.toUpperCase()}</span></div>
+                                <div>Storage: <span style="color: ${getStatusColor(healthStatus.status.storage)}">${healthStatus.status.storage?.toUpperCase()}</span></div>
                             </div>
                         </div>
                         
@@ -1385,13 +1405,17 @@
                             <h3 style="color: var(--primary); margin-bottom: 10px;">🛡️ SELF-HEALING FEATURES</h3>
                             <div style="font-size: 0.9rem; line-height: 1.8;">
                                 • Automatic API retry with exponential backoff<br>
+                                • Circuit breaker pattern for API protection<br>
                                 • Configuration validation and auto-repair<br>
                                 • Network recovery and offline handling<br>
                                 • Memory management and cleanup<br>
                                 • Performance monitoring and optimization<br>
+                                • Application state backup and recovery<br>
+                                • Cross-tab data synchronization<br>
                                 • Data integrity validation<br>
                                 • Intelligent caching with health checks<br>
-                                • Graceful degradation on failures
+                                • Graceful degradation on failures<br>
+                                • Real-time system health monitoring
                             </div>
                         </div>
                         
@@ -1478,6 +1502,8 @@
                                 apiCalls: diagnostics.metrics.apiCalls,
                                 apiFailures: diagnostics.metrics.apiFailures,
                                 apiRetries: diagnostics.metrics.apiRetries,
+                                circuitBreakerTrips: diagnostics.metrics.circuitBreakerTrips || 0,
+                                storageRecoveries: diagnostics.metrics.storageRecoveries || 0,
                                 successRate: diagnostics.metrics.apiCalls > 0 ? 
                                     ((diagnostics.metrics.apiCalls - diagnostics.metrics.apiFailures) / diagnostics.metrics.apiCalls * 100).toFixed(1) + '%' : 
                                     'N/A',
@@ -1489,13 +1515,42 @@
                         </div>
                         
                         <div style="background: rgba(0, 20, 40, 0.3); padding: 15px; border-radius: 8px;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">🛡️ Circuit Breaker Status</h3>
+                            <pre style="font-size: 0.8rem; line-height: 1.4; margin: 0;">${JSON.stringify({
+                                state: diagnostics.circuitBreaker?.state || 'unknown',
+                                failureCount: diagnostics.circuitBreaker?.failureCount || 0,
+                                lastFailureTime: diagnostics.circuitBreaker?.lastFailureTime ? 
+                                    new Date(diagnostics.circuitBreaker.lastFailureTime).toLocaleString() : 'N/A',
+                                totalTrips: diagnostics.metrics.circuitBreakerTrips || 0
+                            }, null, 2)}</pre>
+                        </div>
+                        
+                        <div style="background: rgba(0, 20, 40, 0.3); padding: 15px; border-radius: 8px;">
+                            <h3 style="color: var(--primary); margin-bottom: 10px;">💾 Storage Recovery</h3>
+                            <pre style="font-size: 0.8rem; line-height: 1.4; margin: 0;">${JSON.stringify({
+                                enabled: diagnostics.features?.storageRecovery || false,
+                                available: diagnostics.storageManager?.available || false,
+                                lastBackup: diagnostics.storageManager?.lastBackup ? 
+                                    new Date(diagnostics.storageManager.lastBackup).toLocaleString() : 'N/A',
+                                totalRecoveries: diagnostics.metrics.storageRecoveries || 0
+                            }, null, 2)}</pre>
+                        </div>
+                        
+                        <div style="background: rgba(0, 20, 40, 0.3); padding: 15px; border-radius: 8px;">
                             <h3 style="color: var(--primary); margin-bottom: 10px;">🔧 Configuration Status</h3>
                             <pre style="font-size: 0.8rem; line-height: 1.4; margin: 0;">${JSON.stringify({
                                 apiKeyConfigured: API_KEY !== 'YOUR_YOUTUBE_API_KEY',
                                 configValidation: diagnostics.healthStatus.config,
                                 networkStatus: diagnostics.healthStatus.network,
                                 apiStatus: diagnostics.healthStatus.api,
-                                performanceStatus: diagnostics.healthStatus.performance
+                                performanceStatus: diagnostics.healthStatus.performance,
+                                circuitBreakerStatus: diagnostics.healthStatus.circuitBreaker,
+                                storageStatus: diagnostics.healthStatus.storage,
+                                featuresEnabled: {
+                                    circuitBreaker: diagnostics.features?.circuitBreaker || false,
+                                    storageRecovery: diagnostics.features?.storageRecovery || false,
+                                    performanceMonitoring: diagnostics.features?.performanceMonitoring || false
+                                }
                             }, null, 2)}</pre>
                         </div>
                         

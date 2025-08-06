@@ -13,6 +13,12 @@ class SelfHealingService {
             healthCheckInterval: 30000, // 30 seconds
             cacheExpiryTime: 30 * 60 * 1000, // 30 minutes
             offlineRetryInterval: 10000, // 10 seconds
+            // Circuit breaker config
+            circuitBreakerThreshold: 5, // failures before opening circuit
+            circuitBreakerTimeout: 60000, // 1 minute
+            // Storage recovery config
+            enableStorageRecovery: true,
+            storageKeyPrefix: 'ai-video-explorer',
             ...config
         };
         
@@ -24,7 +30,9 @@ class SelfHealingService {
             cacheMisses: 0,
             averageResponseTime: 0,
             lastHealthCheck: null,
-            isOnline: navigator.onLine
+            isOnline: navigator.onLine,
+            circuitBreakerTrips: 0,
+            storageRecoveries: 0
         };
         
         this.cache = new Map();
@@ -32,7 +40,24 @@ class SelfHealingService {
             api: 'unknown',
             config: 'unknown',
             network: navigator.onLine ? 'online' : 'offline',
-            performance: 'unknown'
+            performance: 'unknown',
+            storage: 'unknown',
+            circuitBreaker: 'closed'
+        };
+        
+        // Circuit breaker state
+        this.circuitBreaker = {
+            state: 'closed', // closed, open, half-open
+            failureCount: 0,
+            lastFailureTime: 0,
+            nextAttemptTime: 0
+        };
+        
+        // Storage recovery state
+        this.storageManager = {
+            available: this.checkStorageAvailability(),
+            lastBackup: null,
+            autoBackupInterval: 5 * 60 * 1000 // 5 minutes
         };
         
         this.initialize();
@@ -43,14 +68,22 @@ class SelfHealingService {
         this.setupPerformanceMonitoring();
         this.startHealthCheck();
         this.setupErrorHandlers();
+        this.setupStorageRecovery();
+        this.setupCircuitBreakerMonitoring();
         
-        console.log('✅ Self-Healing Service initialized');
+        console.log('✅ Self-Healing Service initialized with enhanced features');
     }
     
     /**
-     * Enhanced API call with automatic retry and error recovery
+     * Enhanced API call with circuit breaker and automatic retry
      */
     async resilientApiCall(url, options = {}) {
+        // Check circuit breaker first
+        if (!this.canProceedWithApiCall()) {
+            console.warn('🔒 Circuit breaker is open - using fallback');
+            return this.handleApiFallback(url, new Error('Circuit breaker is open'));
+        }
+        
         const startTime = performance.now();
         let lastError;
         
@@ -63,6 +96,7 @@ class SelfHealingService {
                 const cachedResponse = this.getFromCache(cacheKey);
                 if (cachedResponse) {
                     this.metrics.cacheHits++;
+                    this.recordApiSuccess();
                     return cachedResponse;
                 }
                 
@@ -87,18 +121,17 @@ class SelfHealingService {
                 // Record successful API call
                 const responseTime = performance.now() - startTime;
                 this.updatePerformanceMetrics(responseTime);
-                this.healthStatus.api = 'healthy';
+                this.recordApiSuccess();
                 
                 return validatedData;
                 
             } catch (error) {
                 lastError = error;
-                this.metrics.apiFailures++;
+                this.recordApiFailure();
                 
                 console.warn(`🔄 API call attempt ${attempt} failed:`, error.message);
                 
                 if (attempt === this.config.retryAttempts) {
-                    this.healthStatus.api = 'unhealthy';
                     break;
                 }
                 
@@ -113,9 +146,73 @@ class SelfHealingService {
             }
         }
         
-        // All retries failed, attempt graceful degradation
+        // All retries failed
         console.error(`❌ API call failed after ${this.config.retryAttempts} attempts:`, lastError);
         return this.handleApiFallback(url, lastError);
+    }
+    
+    /**
+     * Circuit breaker logic - check if API calls should proceed
+     */
+    canProceedWithApiCall() {
+        const now = Date.now();
+        
+        switch (this.circuitBreaker.state) {
+            case 'closed':
+                return true;
+                
+            case 'open':
+                if (now > this.circuitBreaker.nextAttemptTime) {
+                    console.log('🔄 Circuit breaker moving to half-open state');
+                    this.circuitBreaker.state = 'half-open';
+                    this.healthStatus.circuitBreaker = 'half-open';
+                    return true;
+                }
+                return false;
+                
+            case 'half-open':
+                return true;
+                
+            default:
+                return true;
+        }
+    }
+    
+    /**
+     * Record successful API call for circuit breaker
+     */
+    recordApiSuccess() {
+        if (this.circuitBreaker.state === 'half-open') {
+            console.log('✅ Circuit breaker closing after successful call');
+            this.circuitBreaker.state = 'closed';
+            this.circuitBreaker.failureCount = 0;
+            this.healthStatus.circuitBreaker = 'closed';
+            
+            // Dispatch circuit breaker closed event
+            window.dispatchEvent(new CustomEvent('self-healing:circuit-breaker-closed'));
+        }
+        this.healthStatus.api = 'healthy';
+    }
+    
+    /**
+     * Record failed API call for circuit breaker
+     */
+    recordApiFailure() {
+        this.circuitBreaker.failureCount++;
+        this.circuitBreaker.lastFailureTime = Date.now();
+        this.metrics.apiFailures++;
+        
+        if (this.circuitBreaker.failureCount >= this.config.circuitBreakerThreshold) {
+            console.warn('🔒 Circuit breaker opening due to repeated failures');
+            this.circuitBreaker.state = 'open';
+            this.circuitBreaker.nextAttemptTime = Date.now() + this.config.circuitBreakerTimeout;
+            this.healthStatus.circuitBreaker = 'open';
+            this.healthStatus.api = 'unhealthy';
+            this.metrics.circuitBreakerTrips++;
+            
+            // Dispatch circuit breaker opened event
+            window.dispatchEvent(new CustomEvent('self-healing:circuit-breaker-opened'));
+        }
     }
     
     /**
@@ -340,6 +437,79 @@ class SelfHealingService {
     }
     
     /**
+     * Setup storage recovery system
+     */
+    setupStorageRecovery() {
+        if (!this.config.enableStorageRecovery) {
+            console.log('📦 Storage recovery disabled by configuration');
+            return;
+        }
+        
+        if (!this.storageManager.available) {
+            console.warn('⚠️ localStorage not available - storage recovery disabled');
+            this.healthStatus.storage = 'unavailable';
+            return;
+        }
+        
+        console.log('📦 Setting up storage recovery system...');
+        this.healthStatus.storage = 'healthy';
+        
+        // Auto-backup application state periodically
+        setInterval(() => {
+            this.backupApplicationState();
+        }, this.storageManager.autoBackupInterval);
+        
+        // Attempt to recover state on initialization
+        this.recoverApplicationState();
+        
+        // Listen for beforeunload to backup state
+        window.addEventListener('beforeunload', () => {
+            this.backupApplicationState();
+        });
+        
+        // Listen for storage events from other tabs
+        window.addEventListener('storage', (e) => {
+            if (e.key && e.key.startsWith(this.config.storageKeyPrefix)) {
+                console.log('📦 Storage change detected from another tab');
+                this.handleStorageChange(e);
+            }
+        });
+    }
+    
+    /**
+     * Check if localStorage is available
+     */
+    checkStorageAvailability() {
+        try {
+            const testKey = 'test-storage-availability';
+            localStorage.setItem(testKey, 'test');
+            localStorage.removeItem(testKey);
+            return true;
+        } catch (error) {
+            console.warn('⚠️ localStorage not available:', error);
+            return false;
+        }
+    }
+    
+    /**
+     * Setup circuit breaker monitoring
+     */
+    setupCircuitBreakerMonitoring() {
+        // Reset circuit breaker state periodically if it's been open too long
+        setInterval(() => {
+            if (this.circuitBreaker.state === 'open') {
+                const timeSinceOpen = Date.now() - this.circuitBreaker.lastFailureTime;
+                if (timeSinceOpen > this.config.circuitBreakerTimeout * 2) {
+                    console.log('🔄 Resetting circuit breaker after extended timeout');
+                    this.circuitBreaker.state = 'closed';
+                    this.circuitBreaker.failureCount = 0;
+                    this.healthStatus.circuitBreaker = 'closed';
+                }
+            }
+        }, this.config.circuitBreakerTimeout);
+    }
+    
+    /**
      * Perform memory cleanup
      */
     performMemoryCleanup() {
@@ -368,6 +538,119 @@ class SelfHealingService {
     }
     
     /**
+     * Backup application state to localStorage
+     */
+    backupApplicationState() {
+        if (!this.storageManager.available) return;
+        
+        try {
+            const state = {
+                timestamp: Date.now(),
+                config: this.config,
+                healthStatus: this.healthStatus,
+                metrics: this.metrics,
+                circuitBreaker: this.circuitBreaker,
+                cache: Array.from(this.cache.entries()),
+                appVersion: '3.0'
+            };
+            
+            const key = `${this.config.storageKeyPrefix}-app-state`;
+            localStorage.setItem(key, JSON.stringify(state));
+            this.storageManager.lastBackup = Date.now();
+            
+            console.log('💾 Application state backed up to localStorage');
+            
+        } catch (error) {
+            console.warn('⚠️ Failed to backup application state:', error);
+            this.healthStatus.storage = 'degraded';
+        }
+    }
+    
+    /**
+     * Recover application state from localStorage
+     */
+    recoverApplicationState() {
+        if (!this.storageManager.available) return;
+        
+        try {
+            const key = `${this.config.storageKeyPrefix}-app-state`;
+            const storedState = localStorage.getItem(key);
+            
+            if (!storedState) {
+                console.log('📦 No stored application state found');
+                return;
+            }
+            
+            const state = JSON.parse(storedState);
+            
+            // Check if stored state is not too old (24 hours max)
+            const maxAge = 24 * 60 * 60 * 1000;
+            if (Date.now() - state.timestamp > maxAge) {
+                console.log('📦 Stored state is too old, ignoring');
+                localStorage.removeItem(key);
+                return;
+            }
+            
+            // Recover cache if available
+            if (state.cache && Array.isArray(state.cache)) {
+                this.cache = new Map(state.cache);
+                console.log(`📦 Recovered ${state.cache.length} cache entries`);
+            }
+            
+            // Recover metrics (but don't overwrite current session)
+            if (state.metrics) {
+                this.metrics = {
+                    ...this.metrics,
+                    ...state.metrics,
+                    // Keep current session values
+                    apiCalls: this.metrics.apiCalls,
+                    apiFailures: this.metrics.apiFailures,
+                    apiRetries: this.metrics.apiRetries,
+                    isOnline: navigator.onLine
+                };
+            }
+            
+            this.metrics.storageRecoveries++;
+            console.log('✅ Application state recovered successfully');
+            
+            // Dispatch recovery event
+            window.dispatchEvent(new CustomEvent('self-healing:state-recovered', {
+                detail: { recoveredItems: ['cache', 'metrics'] }
+            }));
+            
+        } catch (error) {
+            console.warn('⚠️ Failed to recover application state:', error);
+            this.healthStatus.storage = 'degraded';
+        }
+    }
+    
+    /**
+     * Handle storage changes from other tabs
+     */
+    handleStorageChange(event) {
+        console.log('📦 Handling storage change:', event.key);
+        
+        // Sync cache between tabs if needed
+        if (event.key.endsWith('-app-state') && event.newValue) {
+            try {
+                const state = JSON.parse(event.newValue);
+                if (state.cache && Array.isArray(state.cache)) {
+                    // Merge cache from other tab
+                    const otherCache = new Map(state.cache);
+                    for (const [key, value] of otherCache) {
+                        if (!this.cache.has(key)) {
+                            this.cache.set(key, value);
+                        }
+                    }
+                    console.log('🔄 Synced cache from another tab');
+                }
+            } catch (error) {
+                console.warn('⚠️ Error syncing from other tab:', error);
+            }
+        }
+    }
+    
+    /**
      * Start health check monitoring
      */
     startHealthCheck() {
@@ -383,20 +666,22 @@ class SelfHealingService {
      * Perform comprehensive health check
      */
     async performHealthCheck() {
-        console.log('🏥 Performing health check...');
+        console.log('🏥 Performing comprehensive health check...');
         
         this.metrics.lastHealthCheck = new Date();
         
-        // Check API connectivity
-        try {
-            const testResponse = await fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&q=test&maxResults=1&key=test', {
-                method: 'HEAD',
-                timeout: 5000
-            });
-            // Even if unauthorized, if we get a response, the API endpoint is reachable
-            this.healthStatus.api = response.status === 401 ? 'healthy' : 'healthy';
-        } catch (error) {
-            this.healthStatus.api = 'unhealthy';
+        // Check API connectivity (respecting circuit breaker)
+        if (this.circuitBreaker.state !== 'open') {
+            try {
+                const testResponse = await fetch('https://www.googleapis.com/youtube/v3/search?part=snippet&q=test&maxResults=1&key=test', {
+                    method: 'HEAD',
+                    timeout: 5000
+                });
+                // Even if unauthorized, if we get a response, the API endpoint is reachable
+                this.healthStatus.api = testResponse.status === 401 ? 'healthy' : 'healthy';
+            } catch (error) {
+                this.healthStatus.api = 'unhealthy';
+            }
         }
         
         // Check performance
@@ -407,9 +692,26 @@ class SelfHealingService {
             this.healthStatus.performance = 'healthy';
         }
         
+        // Check storage health
+        if (this.config.enableStorageRecovery && this.storageManager.available) {
+            try {
+                const testKey = `${this.config.storageKeyPrefix}-health-test`;
+                localStorage.setItem(testKey, Date.now().toString());
+                localStorage.removeItem(testKey);
+                this.healthStatus.storage = 'healthy';
+            } catch (error) {
+                console.warn('⚠️ Storage health check failed:', error);
+                this.healthStatus.storage = 'degraded';
+            }
+        }
+        
         // Dispatch health status update
         window.dispatchEvent(new CustomEvent('self-healing:health-update', {
-            detail: { status: this.healthStatus, metrics: this.metrics }
+            detail: { 
+                status: this.healthStatus, 
+                metrics: this.metrics,
+                circuitBreaker: this.circuitBreaker 
+            }
         }));
     }
     
@@ -556,11 +858,23 @@ class SelfHealingService {
             config: this.config,
             healthStatus: this.healthStatus,
             metrics: this.metrics,
+            circuitBreaker: this.circuitBreaker,
+            storageManager: {
+                available: this.storageManager.available,
+                lastBackup: this.storageManager.lastBackup
+            },
             cacheSize: this.cache.size,
             timestamp: new Date(),
             userAgent: navigator.userAgent,
             online: navigator.onLine,
-            memory: 'memory' in performance ? performance.memory : null
+            memory: 'memory' in performance ? performance.memory : null,
+            features: {
+                circuitBreaker: true,
+                storageRecovery: this.config.enableStorageRecovery,
+                performanceMonitoring: true,
+                networkRecovery: true,
+                configValidation: true
+            }
         };
     }
 }

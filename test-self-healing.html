@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Healing System Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ffcc;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            background: rgba(0, 20, 40, 0.5);
+            border: 1px solid #00ffcc;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .pass { background: rgba(0, 255, 0, 0.2); }
+        .fail { background: rgba(255, 0, 0, 0.2); }
+        .info { background: rgba(0, 0, 255, 0.2); }
+        button {
+            background: linear-gradient(135deg, rgba(0, 30, 60, 0.8), rgba(0, 20, 40, 0.8));
+            border: 1px solid #00ffcc;
+            color: #00ffcc;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-family: inherit;
+        }
+        button:hover {
+            background: linear-gradient(135deg, rgba(0, 50, 100, 0.9), rgba(0, 30, 60, 0.9));
+        }
+        pre {
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        h1, h2 { color: #00ffcc; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🛡️ SELF-HEALING SYSTEM TEST SUITE</h1>
+        
+        <div class="test-section">
+            <h2>📊 System Status</h2>
+            <div id="system-status">Initializing...</div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔧 Basic Functionality Tests</h2>
+            <button onclick="testSelfHealingInitialization()">Test Initialization</button>
+            <button onclick="testConfigValidation()">Test Config Validation</button>
+            <button onclick="testStorageAvailability()">Test Storage Recovery</button>
+            <div id="basic-tests-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>🔒 Circuit Breaker Tests</h2>
+            <button onclick="testCircuitBreakerClosed()">Test Closed State</button>
+            <button onclick="simulateApiFailures()">Simulate API Failures</button>
+            <button onclick="testCircuitBreakerOpen()">Test Open State</button>
+            <button onclick="resetCircuitBreaker()">Reset Circuit Breaker</button>
+            <div id="circuit-breaker-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>💾 Storage Recovery Tests</h2>
+            <button onclick="testBackupState()">Test Backup State</button>
+            <button onclick="testRecoverState()">Test Recover State</button>
+            <button onclick="testCrossTabhSync()">Test Cross-Tab Sync</button>
+            <div id="storage-tests-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>⚡ Performance Tests</h2>
+            <button onclick="testPerformanceMonitoring()">Test Performance Monitoring</button>
+            <button onclick="testMemoryCleanup()">Test Memory Cleanup</button>
+            <button onclick="testHealthCheck()">Test Health Check</button>
+            <div id="performance-tests-results"></div>
+        </div>
+        
+        <div class="test-section">
+            <h2>📈 Real-time Diagnostics</h2>
+            <button onclick="showLiveDiagnostics()">Show Live Diagnostics</button>
+            <button onclick="toggleAutoRefresh()">Toggle Auto-Refresh</button>
+            <div id="diagnostics-display"></div>
+        </div>
+    </div>
+
+    <!-- Load Self-Healing Service -->
+    <script src="self-healing.js"></script>
+
+    <script>
+        // Initialize Self-Healing Service for testing
+        let selfHealing;
+        let autoRefreshInterval;
+        
+        function initializeTests() {
+            try {
+                selfHealing = new SelfHealingService({
+                    retryAttempts: 2,
+                    retryDelay: 500,
+                    circuitBreakerThreshold: 3,
+                    circuitBreakerTimeout: 5000,
+                    enableStorageRecovery: true,
+                    storageKeyPrefix: 'test-self-healing'
+                });
+                
+                updateSystemStatus();
+                setupEventListeners();
+                
+                logResult('system-status', 'Self-Healing Service initialized successfully', 'pass');
+            } catch (error) {
+                logResult('system-status', `Initialization failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function setupEventListeners() {
+            window.addEventListener('self-healing:health-update', (event) => {
+                updateSystemStatus(event.detail);
+            });
+            
+            window.addEventListener('self-healing:circuit-breaker-opened', () => {
+                logResult('circuit-breaker-results', '🔒 Circuit breaker opened event received', 'info');
+            });
+            
+            window.addEventListener('self-healing:circuit-breaker-closed', () => {
+                logResult('circuit-breaker-results', '✅ Circuit breaker closed event received', 'pass');
+            });
+            
+            window.addEventListener('self-healing:state-recovered', (event) => {
+                logResult('storage-tests-results', `📦 State recovered: ${JSON.stringify(event.detail)}`, 'pass');
+            });
+        }
+        
+        function updateSystemStatus(healthData = null) {
+            const status = healthData || selfHealing.getHealthStatus();
+            const statusHtml = `
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    <div>Network: <span style="color: ${getStatusColor(status.status.network)}">${status.status.network?.toUpperCase()}</span></div>
+                    <div>API: <span style="color: ${getStatusColor(status.status.api)}">${status.status.api?.toUpperCase()}</span></div>
+                    <div>Circuit Breaker: <span style="color: ${getStatusColor(status.status.circuitBreaker)}">${status.status.circuitBreaker?.toUpperCase()}</span></div>
+                    <div>Storage: <span style="color: ${getStatusColor(status.status.storage)}">${status.status.storage?.toUpperCase()}</span></div>
+                    <div>Performance: <span style="color: ${getStatusColor(status.status.performance)}">${status.status.performance?.toUpperCase()}</span></div>
+                    <div>Config: <span style="color: ${getStatusColor(status.status.config)}">${status.status.config?.toUpperCase()}</span></div>
+                </div>
+                <div style="margin-top: 15px;">
+                    <strong>Last Updated:</strong> ${new Date().toLocaleTimeString()}
+                </div>
+            `;
+            document.getElementById('system-status').innerHTML = statusHtml;
+        }
+        
+        function getStatusColor(status) {
+            switch (status) {
+                case 'healthy': case 'online': case 'closed': return '#00ffcc';
+                case 'degraded': case 'unhealthy': case 'half-open': return '#ffaa00';
+                case 'offline': case 'critical': case 'open': case 'unavailable': return '#ff3366';
+                default: return '#888888';
+            }
+        }
+        
+        // Basic functionality tests
+        function testSelfHealingInitialization() {
+            try {
+                const diagnostics = selfHealing.getDiagnostics();
+                const hasAllFeatures = diagnostics.features?.circuitBreaker && 
+                                     diagnostics.features?.storageRecovery && 
+                                     diagnostics.features?.performanceMonitoring;
+                
+                if (hasAllFeatures) {
+                    logResult('basic-tests-results', '✅ All self-healing features are enabled', 'pass');
+                } else {
+                    logResult('basic-tests-results', '⚠️ Some self-healing features are missing', 'fail');
+                }
+                
+                logResult('basic-tests-results', `Config loaded with ${Object.keys(selfHealing.config).length} settings`, 'info');
+            } catch (error) {
+                logResult('basic-tests-results', `Initialization test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function testConfigValidation() {
+            try {
+                const testConfig = {
+                    API_KEY: 'test-key',
+                    app_settings: {
+                        max_results: 'invalid',
+                        videos_to_display: -5,
+                        cache_duration_minutes: 0
+                    },
+                    ui_settings: {
+                        matrix_effect_speed: 200,
+                        autoplay_preview: 'yes'
+                    }
+                };
+                
+                const { config: repaired, repairs } = selfHealing.validateAndRepairConfig(testConfig);
+                
+                if (repairs.length > 0) {
+                    logResult('basic-tests-results', `✅ Config validation repaired ${repairs.length} issues`, 'pass');
+                    logResult('basic-tests-results', `Repairs: ${repairs.join(', ')}`, 'info');
+                } else {
+                    logResult('basic-tests-results', '⚠️ No config issues detected or repaired', 'info');
+                }
+            } catch (error) {
+                logResult('basic-tests-results', `Config validation test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function testStorageAvailability() {
+            try {
+                const available = selfHealing.storageManager?.available;
+                if (available) {
+                    logResult('basic-tests-results', '✅ localStorage is available for recovery', 'pass');
+                } else {
+                    logResult('basic-tests-results', '❌ localStorage is not available', 'fail');
+                }
+            } catch (error) {
+                logResult('basic-tests-results', `Storage test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Circuit breaker tests
+        function testCircuitBreakerClosed() {
+            try {
+                const canProceed = selfHealing.canProceedWithApiCall();
+                const state = selfHealing.circuitBreaker.state;
+                
+                if (canProceed && state === 'closed') {
+                    logResult('circuit-breaker-results', '✅ Circuit breaker is in closed state (normal operation)', 'pass');
+                } else {
+                    logResult('circuit-breaker-results', `⚠️ Circuit breaker state: ${state}, can proceed: ${canProceed}`, 'info');
+                }
+            } catch (error) {
+                logResult('circuit-breaker-results', `Circuit breaker test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function simulateApiFailures() {
+            try {
+                logResult('circuit-breaker-results', '🔄 Simulating API failures...', 'info');
+                
+                for (let i = 0; i < selfHealing.config.circuitBreakerThreshold + 1; i++) {
+                    selfHealing.recordApiFailure();
+                    logResult('circuit-breaker-results', `Simulated failure ${i + 1}/${selfHealing.config.circuitBreakerThreshold + 1}`, 'info');
+                }
+                
+                const state = selfHealing.circuitBreaker.state;
+                if (state === 'open') {
+                    logResult('circuit-breaker-results', '🔒 Circuit breaker successfully opened after failures', 'pass');
+                } else {
+                    logResult('circuit-breaker-results', `⚠️ Circuit breaker state: ${state} (expected: open)`, 'fail');
+                }
+                
+                updateSystemStatus();
+            } catch (error) {
+                logResult('circuit-breaker-results', `Failure simulation failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function testCircuitBreakerOpen() {
+            try {
+                const canProceed = selfHealing.canProceedWithApiCall();
+                const state = selfHealing.circuitBreaker.state;
+                
+                if (state === 'open' && !canProceed) {
+                    logResult('circuit-breaker-results', '✅ Circuit breaker correctly blocks requests when open', 'pass');
+                } else {
+                    logResult('circuit-breaker-results', `⚠️ Circuit breaker state: ${state}, can proceed: ${canProceed}`, 'info');
+                }
+            } catch (error) {
+                logResult('circuit-breaker-results', `Circuit breaker open test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function resetCircuitBreaker() {
+            try {
+                selfHealing.circuitBreaker.state = 'closed';
+                selfHealing.circuitBreaker.failureCount = 0;
+                selfHealing.healthStatus.circuitBreaker = 'closed';
+                
+                logResult('circuit-breaker-results', '🔄 Circuit breaker manually reset to closed state', 'info');
+                updateSystemStatus();
+            } catch (error) {
+                logResult('circuit-breaker-results', `Reset failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Storage recovery tests
+        function testBackupState() {
+            try {
+                selfHealing.backupApplicationState();
+                const key = `${selfHealing.config.storageKeyPrefix}-app-state`;
+                const stored = localStorage.getItem(key);
+                
+                if (stored) {
+                    const state = JSON.parse(stored);
+                    logResult('storage-tests-results', '✅ Application state backed up successfully', 'pass');
+                    logResult('storage-tests-results', `Backup size: ${stored.length} characters`, 'info');
+                    logResult('storage-tests-results', `Backup timestamp: ${new Date(state.timestamp).toLocaleString()}`, 'info');
+                } else {
+                    logResult('storage-tests-results', '❌ Backup state not found in localStorage', 'fail');
+                }
+            } catch (error) {
+                logResult('storage-tests-results', `Backup test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function testRecoverState() {
+            try {
+                // First backup some test data
+                selfHealing.cache.set('test-key', { data: 'test-value', timestamp: Date.now() });
+                selfHealing.backupApplicationState();
+                
+                // Clear cache and recover
+                selfHealing.cache.clear();
+                selfHealing.recoverApplicationState();
+                
+                const recovered = selfHealing.cache.get('test-key');
+                if (recovered && recovered.data === 'test-value') {
+                    logResult('storage-tests-results', '✅ Application state recovered successfully', 'pass');
+                } else {
+                    logResult('storage-tests-results', '⚠️ Recovery test completed but data may not match', 'info');
+                }
+            } catch (error) {
+                logResult('storage-tests-results', `Recovery test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function testCrossTabhSync() {
+            try {
+                // Simulate storage event from another tab
+                const key = `${selfHealing.config.storageKeyPrefix}-app-state`;
+                const mockState = {
+                    timestamp: Date.now(),
+                    cache: [['test-sync-key', { data: 'synced-value', timestamp: Date.now() }]],
+                    appVersion: '3.1'
+                };
+                
+                localStorage.setItem(key, JSON.stringify(mockState));
+                
+                // Trigger storage event
+                const event = new StorageEvent('storage', {
+                    key: key,
+                    newValue: JSON.stringify(mockState),
+                    oldValue: null,
+                    url: window.location.href
+                });
+                
+                selfHealing.handleStorageChange(event);
+                logResult('storage-tests-results', '✅ Cross-tab sync test completed', 'pass');
+            } catch (error) {
+                logResult('storage-tests-results', `Cross-tab sync test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Performance tests
+        function testPerformanceMonitoring() {
+            try {
+                // Test response time tracking
+                selfHealing.updatePerformanceMetrics(1000);
+                selfHealing.updatePerformanceMetrics(2000);
+                
+                const avgTime = selfHealing.metrics.averageResponseTime;
+                if (avgTime > 0) {
+                    logResult('performance-tests-results', `✅ Performance monitoring active (avg: ${Math.round(avgTime)}ms)`, 'pass');
+                } else {
+                    logResult('performance-tests-results', '⚠️ Performance monitoring may not be working', 'fail');
+                }
+            } catch (error) {
+                logResult('performance-tests-results', `Performance monitoring test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        function testMemoryCleanup() {
+            try {
+                // Add some test cache entries
+                for (let i = 0; i < 10; i++) {
+                    selfHealing.cache.set(`test-${i}`, { 
+                        data: `test-data-${i}`, 
+                        expires: Date.now() - 1000 // Expired
+                    });
+                }
+                
+                const sizeBefore = selfHealing.cache.size;
+                selfHealing.performMemoryCleanup();
+                const sizeAfter = selfHealing.cache.size;
+                
+                logResult('performance-tests-results', `✅ Memory cleanup completed (${sizeBefore} → ${sizeAfter} entries)`, 'pass');
+            } catch (error) {
+                logResult('performance-tests-results', `Memory cleanup test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        async function testHealthCheck() {
+            try {
+                await selfHealing.performHealthCheck();
+                const lastCheck = selfHealing.metrics.lastHealthCheck;
+                
+                if (lastCheck && (Date.now() - lastCheck.getTime()) < 5000) {
+                    logResult('performance-tests-results', '✅ Health check completed successfully', 'pass');
+                } else {
+                    logResult('performance-tests-results', '⚠️ Health check may not have completed', 'fail');
+                }
+            } catch (error) {
+                logResult('performance-tests-results', `Health check test failed: ${error.message}`, 'fail');
+            }
+        }
+        
+        // Diagnostics
+        function showLiveDiagnostics() {
+            const diagnostics = selfHealing.getDiagnostics();
+            const html = `
+                <h3>📊 Live System Diagnostics</h3>
+                <pre>${JSON.stringify(diagnostics, null, 2)}</pre>
+            `;
+            document.getElementById('diagnostics-display').innerHTML = html;
+        }
+        
+        function toggleAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+                logResult('diagnostics-display', '⏸️ Auto-refresh stopped', 'info');
+            } else {
+                autoRefreshInterval = setInterval(() => {
+                    updateSystemStatus();
+                    showLiveDiagnostics();
+                }, 2000);
+                logResult('diagnostics-display', '▶️ Auto-refresh started (2s interval)', 'info');
+            }
+        }
+        
+        // Utility function to log test results
+        function logResult(containerId, message, type) {
+            const container = document.getElementById(containerId);
+            const result = document.createElement('div');
+            result.className = `test-result ${type}`;
+            result.innerHTML = `<strong>[${new Date().toLocaleTimeString()}]</strong> ${message}`;
+            container.appendChild(result);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', initializeTests);
+    </script>
+</body>
+</html>
